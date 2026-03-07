@@ -26,12 +26,12 @@ $presmaList = dbrows(
     [$electionId, 'presma']
 );
 
-// DPM: type='dpm', fakultas pemilih, aktif
+// DPM: type='dpm', dipilih seluruh UPR (tidak filter per fakultas)
 $dpmList = dbrows(
     'SELECT * FROM candidates
-     WHERE election_id = ? AND type = ? AND faculty_id = ? AND is_active = 1
+     WHERE election_id = ? AND type = ? AND is_active = 1
      ORDER BY no ASC',
-    [$electionId, 'dpm', $facultyId]
+    [$electionId, 'dpm']
 );
 
 $hasDpm = count($dpmList) > 0;
@@ -148,6 +148,7 @@ function alertIcon(string $t): string {
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Pemilih - Pilih Kandidat | PEMIRA UPR</title>
+  <link rel="icon" type="image/jpeg" href="img-logo.jpeg" />
   <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
   <link rel="stylesheet" href="style.css" />
   <style>
@@ -185,7 +186,7 @@ function alertIcon(string $t): string {
   <main class="page">
     <header class="topbar">
       <div class="brand">
-        <span class="brand-mark" aria-hidden="true"><i class="bx bx-check-shield"></i></span>
+        <span class="brand-mark" aria-hidden="true"><img src="img-logo.jpeg" alt="Logo PEMIRA UPR" style="width:36px;height:36px;object-fit:contain;border-radius:50%;"></span>
         <div class="brand-text">
           <div class="brand-title">PEMIRA UPR</div>
           <div class="brand-sub">Pilih Kandidat</div>
@@ -312,7 +313,7 @@ function alertIcon(string $t): string {
       </section>
 
       <footer class="footer">
-        <div class="muted">© 2026 PEMIRA UPR</div>
+        <div class="muted">© <script>document.write(new Date().getFullYear())</script>, made by <strong>Phytech</strong></div>
       </footer>
     </section>
   </main>

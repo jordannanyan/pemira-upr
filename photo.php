@@ -97,18 +97,58 @@ $ktmPhoto = $_SESSION['voter_flow']['photo_path'] ?? null;
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Pemilih - Foto Wajah + KTM | PEMIRA UPR</title>
+  <link rel="icon" type="image/jpeg" href="img-logo.jpeg" />
   <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
   <link rel="stylesheet" href="style.css" />
   <style>
     .cam-grid{display:grid;grid-template-columns:1.2fr .8fr;gap:14px}
     .cam-box{border:1px solid rgba(148,163,184,.35);border-radius:16px;background:rgba(255,255,255,.62);padding:12px}
     video, canvas, img{width:100%;border-radius:14px;border:1px solid rgba(148,163,184,.25);background:#0b1220}
+    /* Mirror live video (selfie feel, supaya natural seperti kaca) */
+    #video{transform:scaleX(-1)}
     .btn-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+    .btn-row .btn{min-height:44px;flex:1;min-width:120px}
     .pill-sm{font-size:12px;padding:6px 10px;border-radius:999px;border:1px solid rgba(148,163,184,.35);background:rgba(255,255,255,.5)}
-    @media (max-width: 980px){.cam-grid{grid-template-columns:1fr}}
+    /* Portrait phones: stack */
+    @media (max-width: 640px){
+      .cam-grid{grid-template-columns:1fr}
+      .cam-box{padding:10px}
+    }
+    /* Overlay rotate hint — hanya muncul di portrait pada layar kecil (HP) */
+    #rotateHint{
+      display:none;
+      position:fixed;inset:0;z-index:9999;
+      background:rgba(15,23,42,.88);
+      backdrop-filter:blur(6px);
+      flex-direction:column;align-items:center;justify-content:center;gap:16px;
+      color:#fff;text-align:center;padding:24px;
+    }
+    #rotateHint .rotate-icon{font-size:56px;animation:spin90 1.2s ease-in-out infinite alternate}
+    @keyframes spin90{from{transform:rotate(0deg)}to{transform:rotate(90deg)}}
+    @media (max-width:768px) and (orientation:portrait){
+      #rotateHint{display:flex}
+    }
+    /* Landscape phone (lebar tapi pendek): 2 kolom compact */
+    @media (orientation:landscape) and (max-height:520px){
+      .cam-grid{grid-template-columns:1fr 1fr;gap:8px}
+      .cam-box{padding:8px}
+      #video,#previewImg{max-height:38vh;object-fit:cover}
+      .card-head h1{font-size:1rem;margin-bottom:2px}
+      .card-head p{display:none}
+      .topbar{padding:6px 16px}
+    }
   </style>
 </head>
 <body>
+  <!-- Overlay: minta putar HP ke landscape (hanya muncul di portrait mobile via CSS) -->
+  <div id="rotateHint" role="alertdialog" aria-label="Putar HP ke Landscape">
+    <i class="bx bx-mobile rotate-icon"></i>
+    <div>
+      <div style="font-size:1.15rem;font-weight:700;margin-bottom:6px;">Putar HP ke Landscape</div>
+      <div style="font-size:.9rem;opacity:.85;">Untuk kemudahan mengambil foto wajah + KTM,<br>putar HP ke posisi <b>horizontal (landscape)</b>.</div>
+    </div>
+  </div>
+
   <div class="bg-blobs" aria-hidden="true">
     <span class="blob b1"></span><span class="blob b2"></span><span class="blob b3"></span>
   </div>
@@ -116,7 +156,7 @@ $ktmPhoto = $_SESSION['voter_flow']['photo_path'] ?? null;
   <main class="page">
     <header class="topbar">
       <div class="brand">
-        <span class="brand-mark" aria-hidden="true"><i class="bx bx-check-shield"></i></span>
+        <span class="brand-mark" aria-hidden="true"><img src="img-logo.jpeg" alt="Logo PEMIRA UPR" style="width:36px;height:36px;object-fit:contain;border-radius:50%;"></span>
         <div class="brand-text">
           <div class="brand-title">PEMIRA UPR</div>
           <div class="brand-sub">Verifikasi Foto</div>
@@ -161,7 +201,7 @@ $ktmPhoto = $_SESSION['voter_flow']['photo_path'] ?? null;
           </div>
 
           <div class="cam-grid">
-            <div class="cam-box">
+            <div class="cam-box" id="camBoxLeft">
               <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
                 <b>Webcam</b>
                 <span class="pill-sm" id="camStatus">Menghubungkan…</span>
@@ -186,7 +226,7 @@ $ktmPhoto = $_SESSION['voter_flow']['photo_path'] ?? null;
               </div>
             </div>
 
-            <div class="cam-box">
+            <div class="cam-box" id="camBoxRight">
               <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
                 <b>Preview</b>
                 <span class="pill-sm" id="prevStatus"><?php echo $ktmPhoto ? '✅ Ada (server)' : '⏳ Belum ada'; ?></span>
@@ -220,7 +260,7 @@ $ktmPhoto = $_SESSION['voter_flow']['photo_path'] ?? null;
       </section>
 
       <footer class="footer">
-        <div class="muted">© 2026 PEMIRA UPR</div>
+        <div class="muted">© <script>document.write(new Date().getFullYear())</script>, made by <strong>Phytech</strong></div>
       </footer>
     </section>
   </main>
@@ -262,7 +302,12 @@ $ktmPhoto = $_SESSION['voter_flow']['photo_path'] ?? null;
     if (!video.videoWidth || !video.videoHeight) return;
     canvas.width  = video.videoWidth;
     canvas.height = video.videoHeight;
+    // Flip canvas horizontally supaya foto konsisten dengan live mirror video
+    ctx.save();
+    ctx.translate(canvas.width, 0);
+    ctx.scale(-1, 1);
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    ctx.restore();
     const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
     lastDataUrl = dataUrl;
     previewImg.src = dataUrl;
@@ -271,6 +316,11 @@ $ktmPhoto = $_SESSION['voter_flow']['photo_path'] ?? null;
     prevStatus.textContent = '✅ Siap disimpan';
     btnSubmit.disabled = false;
     btnRetake.disabled = false;
+
+    // Sembunyikan webcam box, scroll ke preview box
+    document.getElementById('camBoxLeft').style.display = 'none';
+    const previewBox = document.getElementById('camBoxRight');
+    previewBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
 
   function retake() {
@@ -280,6 +330,8 @@ $ktmPhoto = $_SESSION['voter_flow']['photo_path'] ?? null;
     previewEmpty.style.display = '';
     prevStatus.textContent = '⏳ Belum ada';
     btnSubmit.disabled = true;
+    // Tampilkan kembali webcam box
+    document.getElementById('camBoxLeft').style.display = '';
   }
 
   btnCapture.addEventListener('click', capture);

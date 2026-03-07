@@ -3,8 +3,7 @@
 // Superadmin – General Settings
 // URL: index.php?p=settings&user=superadmin
 
-$user = strtolower(trim($_GET['user'] ?? 'admin'));
-if ($user !== 'superadmin') {
+if ($role !== 'superadmin') {
     http_response_code(403);
     echo "<div class='container-xxl flex-grow-1 container-p-y'>
             <div class='card'><div class='card-body'>
@@ -14,8 +13,6 @@ if ($user !== 'superadmin') {
           </div>";
     return;
 }
-
-function h($s){ return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
 
 // ===== Dummy settings (nanti ganti DB) =====
 $settings = [

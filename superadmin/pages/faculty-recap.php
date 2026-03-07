@@ -1,7 +1,18 @@
 <?php
-// pages/faculty-recap.php — Rekap Fakultas (Admin Fakultas / Superadmin)
+// pages/faculty-recap.php — Rekap Fakultas (Superadmin only)
 
-$myFacultyId = $role === 'admin_faculty' ? (int)($admin['faculty_id'] ?? 0) : null;
+if ($role !== 'superadmin') {
+    http_response_code(403);
+    echo "<div class='container-xxl flex-grow-1 container-p-y'>
+            <div class='card'><div class='card-body'>
+              <h4 class='mb-2'>403 - Akses ditolak</h4>
+              <p class='mb-0'>Halaman ini hanya untuk <b>superadmin</b>.</p>
+            </div></div>
+          </div>";
+    return;
+}
+
+$myFacultyId = null;
 
 // Superadmin can pick a faculty via ?faculty_id=X
 if ($role === 'superadmin') {
@@ -73,14 +84,14 @@ $presmaMeta   = array_map(fn($r) => ['no' => (int)$r['no'], 'name' => $r['name']
 $presmaSeries = array_map('intval', $presmaSeries);
 $totalPresma  = array_sum($presmaSeries);
 
-// DPM live count (this faculty only)
+// DPM live count (global — semua UPR memilih DPM)
 $dpmRows = $election ? dbrows(
     'SELECT c.no, c.name, COUNT(v.id) AS votes
      FROM candidates c
      LEFT JOIN votes v ON v.candidate_id=c.id AND v.election_id=c.election_id
-     WHERE c.election_id=? AND c.type="dpm" AND c.faculty_id=? AND c.is_active=1
+     WHERE c.election_id=? AND c.type="dpm" AND c.is_active=1
      GROUP BY c.id ORDER BY c.no ASC',
-    [$election['id'], $myFacultyId]
+    [$election['id']]
 ) : [];
 $dpmSeries = array_map('intval', array_column($dpmRows, 'votes'));
 $dpmLabels = array_map(fn($r) => 'No. ' . $r['no'] . ' - ' . $r['name'], $dpmRows);
@@ -223,7 +234,7 @@ $totalDpm  = array_sum($dpmSeries);
                 <div class="card-header">
                     <h5 class="mb-0">Live Count DPM</h5>
                     <small class="text-muted">
-                        <?php echo h($faculty['name']); ?> ·
+                        Seluruh UPR ·
                         Total: <b id="totalDpmEl"><?php echo number_format($totalDpm); ?></b>
                     </small>
                 </div>

@@ -6,8 +6,8 @@
                   <script>
                     document.write(new Date().getFullYear());
                   </script>
-                  , made  by
-                  <a  class="footer-link fw-bolder">Pytech</a>
+                  , made by
+                  <a class="footer-link fw-bolder">Phytech</a>
                 </div>
               </div>
             </footer>

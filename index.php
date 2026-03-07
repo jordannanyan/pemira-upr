@@ -53,6 +53,7 @@ $ttlMin = $election['token_ttl_minutes'] ?? 10;
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Pemilih - Login (NIM + Token) | PEMIRA UPR</title>
+  <link rel="icon" type="image/jpeg" href="img-logo.jpeg" />
   <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
   <link rel="stylesheet" href="style.css" />
 </head>
@@ -68,7 +69,7 @@ $ttlMin = $election['token_ttl_minutes'] ?? 10;
     <header class="topbar">
       <div class="brand">
         <span class="brand-mark" aria-hidden="true">
-          <i class="bx bx-check-shield"></i>
+          <img src="img-logo.jpeg" alt="Logo PEMIRA UPR" style="width:36px;height:36px;object-fit:contain;border-radius:50%;">
         </span>
         <div class="brand-text">
           <div class="brand-title">PEMIRA UPR</div>
@@ -254,7 +255,7 @@ $ttlMin = $election['token_ttl_minutes'] ?? 10;
       </div>
 
       <footer class="footer">
-        <div class="muted">© 2026 PEMIRA UPR · Portal Pemilih</div>
+        <div class="muted">© <script>document.write(new Date().getFullYear())</script>, made by <strong>Phytech</strong></div>
         <?php if ($election): ?>
           <div class="muted"><?php echo h($election['name']); ?></div>
         <?php endif; ?>

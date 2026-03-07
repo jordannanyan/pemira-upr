@@ -3,8 +3,7 @@
 // Superadmin – Security Settings
 // URL: index.php?p=security&user=superadmin
 
-$user = strtolower(trim($_GET['user'] ?? 'admin'));
-if ($user !== 'superadmin') {
+if ($role !== 'superadmin') {
     http_response_code(403);
     echo "<div class='container-xxl flex-grow-1 container-p-y'>
             <div class='card'><div class='card-body'>
@@ -15,9 +14,7 @@ if ($user !== 'superadmin') {
     return;
 }
 
-function h($s){ return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
-
-// ===== Dummy security config (ganti DB nanti) =====
+// ===== Security config (informational — TTL diambil dari election aktif) =====
 $sec = [
   // Login protection
   'login_rate_limit_enabled' => 1,
@@ -50,20 +47,24 @@ $sec = [
   'ip_allowlist'             => "127.0.0.1\n192.168.1.0/24",
 ];
 
-// ===== Dummy audit ringkas =====
-$audit = [
-  ['time' => '2026-01-10 08:02', 'actor' => 'superadmin', 'action' => 'Update security settings', 'ip' => '127.0.0.1'],
-  ['time' => '2026-01-10 08:05', 'actor' => 'admin_ft',    'action' => 'Issue token to NIM 2101xxxx', 'ip' => '192.168.1.10'],
-  ['time' => '2026-01-10 08:06', 'actor' => 'admin_fh',    'action' => 'Issue token to NIM 2102xxxx', 'ip' => '192.168.1.11'],
-  ['time' => '2026-01-10 08:08', 'actor' => 'voter',       'action' => 'Login attempt failed (token)', 'ip' => '192.168.1.22'],
-];
+// Audit log nyata dari DB (50 terbaru)
+$audit = dbrows(
+    'SELECT al.*, a.username AS admin_username
+     FROM audit_log al
+     LEFT JOIN admin_users a ON a.id = al.actor_id
+     ORDER BY al.created_at DESC LIMIT 50'
+);
 
 $flash = null;
 $flashType = 'success';
 $rotateMsg = null;
 
-// ===== POST handler (demo only) =====
+// ===== POST handler =====
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!csrf_check($_POST['_csrf'] ?? '')) {
+        $flash = 'Token keamanan tidak valid.';
+        $flashType = 'danger';
+    }
     $action = $_POST['_action'] ?? 'save';
 
     if ($action === 'rotate_secret') {
@@ -140,6 +141,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <?php endif; ?>
 
   <form method="post" class="row g-4">
+    <?php echo csrf_field(); ?>
     <input type="hidden" name="_action" value="save">
 
     <!-- LEFT: Settings -->
@@ -373,39 +375,56 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       <div class="card">
         <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
           <div>
-            <h5 class="mb-0">Audit Ringkas</h5>
-            <small class="text-muted">Contoh log, nanti sumber dari tabel audit</small>
+            <h5 class="mb-0">Audit Log</h5>
+            <small class="text-muted">50 aktivitas terbaru dari semua aktor</small>
           </div>
-          <a class="btn btn-sm btn-outline-primary" href="index.php?p=votes&user=superadmin">
-            <i class="bx bx-receipt me-1"></i> Ke Data Suara & Audit
+          <a class="btn btn-sm btn-outline-primary" href="index.php?p=votes">
+            <i class="bx bx-receipt me-1"></i> Data Suara & Audit
           </a>
         </div>
         <div class="card-body">
+          <?php if (empty($audit)): ?>
+            <div class="text-center text-muted py-4">Belum ada log aktivitas.</div>
+          <?php else: ?>
           <div class="table-responsive">
-            <table class="table table-hover align-middle">
+            <table class="table table-hover align-middle" style="font-size:.87rem;">
               <thead>
                 <tr>
-                  <th style="width: 160px;">Waktu</th>
+                  <th style="width:160px;">Waktu</th>
                   <th>Actor</th>
                   <th>Aksi</th>
-                  <th style="width: 160px;">IP</th>
+                  <th>Keterangan</th>
+                  <th style="width:130px;">IP</th>
                 </tr>
               </thead>
               <tbody>
               <?php foreach ($audit as $r): ?>
+                <?php
+                  $actorLabel = $r['admin_username'] ?? $r['actor_nim'] ?? ('ID ' . ($r['actor_id'] ?? '?'));
+                  $badgeClass = match($r['actor_type']) {
+                      'superadmin'   => 'bg-label-primary',
+                      'admin_faculty'=> 'bg-label-info',
+                      'voter'        => 'bg-label-success',
+                      default        => 'bg-label-secondary',
+                  };
+                ?>
                 <tr>
-                  <td class="text-muted"><?php echo h($r['time']); ?></td>
-                  <td><span class="badge bg-label-primary"><?php echo h($r['actor']); ?></span></td>
+                  <td class="text-muted">
+                    <small><?php echo date('d/m/Y H:i', strtotime($r['created_at'])); ?></small>
+                  </td>
+                  <td>
+                    <span class="badge <?php echo $badgeClass; ?>"><?php echo h($actorLabel); ?></span>
+                    <small class="text-muted d-block"><?php echo h($r['actor_type']); ?></small>
+                  </td>
                   <td><?php echo h($r['action']); ?></td>
-                  <td class="text-muted"><?php echo h($r['ip']); ?></td>
+                  <td class="text-muted"><small><?php echo h($r['description'] ?? '—'); ?></small></td>
+                  <td class="text-muted"><small><?php echo h($r['ip_address'] ?? '—'); ?></small></td>
                 </tr>
               <?php endforeach; ?>
               </tbody>
             </table>
           </div>
-          <small class="text-muted">
-            Untuk versi DB: buat tabel <code>audit_logs</code> (actor_id, action, metadata_json, ip, created_at).
-          </small>
+          <?php endif; ?>
         </div>
       </div>
     </div>

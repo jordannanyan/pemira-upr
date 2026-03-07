@@ -3,7 +3,8 @@
     "allow": [
       "Bash(mysql -u root -e \"SHOW DATABASES;\")",
       "Bash(/c/xampp/mysql/bin/mysql -u root -e \"SHOW DATABASES;\")",
-      "Bash(/c/xampp/mysql/bin/mysql -u root pemira_upr -e \"SHOW TABLES;\")"
+      "Bash(/c/xampp/mysql/bin/mysql -u root pemira_upr -e \"SHOW TABLES;\")",
+      "Bash(/c/xampp/mysql/bin/mysql -u root -e \"SELECT @@global.time_zone, @@session.time_zone, NOW\\(\\), UTC_TIMESTAMP\\(\\);\")"
     ]
   }
 }

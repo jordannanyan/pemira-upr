@@ -5,6 +5,8 @@ declare(strict_types=1);
 // config/db.php — PDO Database Connection
 // ============================================================
 
+date_default_timezone_set('Asia/Jakarta');
+
 define('DB_HOST', 'localhost');
 define('DB_PORT', '3306');
 define('DB_NAME', 'pemira_upr');

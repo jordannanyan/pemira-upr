@@ -79,7 +79,7 @@ CREATE TABLE candidates (
     faculty_id  INT NULL,   -- hanya untuk DPM
     is_active   TINYINT(1)  NOT NULL DEFAULT 1,
     created_at  TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE KEY unique_no_per_election_type (election_id, no, type, faculty_id),
+    UNIQUE KEY unique_no_per_election_type (election_id, no, type),
     FOREIGN KEY (election_id) REFERENCES election_periods(id) ON DELETE CASCADE,
     FOREIGN KEY (faculty_id) REFERENCES faculties(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

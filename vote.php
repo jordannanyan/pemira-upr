@@ -25,6 +25,7 @@ $v = voter_me();
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Pemilih - Verifikasi | PEMIRA UPR</title>
+    <link rel="icon" type="image/jpeg" href="img-logo.jpeg" />
     <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
     <link rel="stylesheet" href="style.css" />
 </head>
@@ -38,7 +39,7 @@ $v = voter_me();
     <main class="page">
         <header class="topbar">
             <div class="brand">
-                <span class="brand-mark" aria-hidden="true"><i class="bx bx-check-shield"></i></span>
+                <span class="brand-mark" aria-hidden="true"><img src="img-logo.jpeg" alt="Logo PEMIRA UPR" style="width:36px;height:36px;object-fit:contain;border-radius:50%;"></span>
                 <div class="brand-text">
                     <div class="brand-title">PEMIRA UPR</div>
                     <div class="brand-sub">Halaman Pemilih</div>
@@ -82,7 +83,7 @@ $v = voter_me();
             </section>
 
             <footer class="footer">
-                <div class="muted">© 2026 PEMIRA UPR</div>
+                <div class="muted">© <script>document.write(new Date().getFullYear())</script>, made by <strong>Phytech</strong></div>
             </footer>
         </section>
     </main>

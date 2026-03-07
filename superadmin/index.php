@@ -27,7 +27,7 @@ $role  = admin_role();
     <meta name="description" content="Panel Administrasi PEMIRA UPR" />
 
     <!-- Favicon -->
-    <link rel="icon" type="image/x-icon" href="assets/img/favicon/favicon.ico" />
+    <link rel="icon" type="image/jpeg" href="../img-logo.jpeg" />
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />

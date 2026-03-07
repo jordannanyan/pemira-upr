@@ -94,16 +94,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!$electionId) $errors[] = 'Pilih periode pemilihan.';
         if ($no <= 0)     $errors[] = 'Nomor urut harus > 0.';
         if ($name === '') $errors[] = 'Nama calon wajib diisi.';
-        if ($type === 'dpm' && !$facultyId) $errors[] = 'Pilih fakultas untuk calon DPM.';
+        // Fakultas untuk DPM sekarang opsional (hanya metadata perwakilan, voting tetap seluruh UPR)
 
-        // Cek duplikat nomor
+        // Cek duplikat nomor (constraint sekarang election_id + no + type saja)
         $editId = $action === 'update' ? (int)($_POST['id'] ?? 0) : 0;
         if (!$errors) {
-            $dupSql    = 'SELECT COUNT(*) FROM candidates WHERE election_id=? AND no=? AND type=? AND (faculty_id<=>?)';
-            $dupParams = [$electionId, $no, $type, $facultyId];
+            $dupSql    = 'SELECT COUNT(*) FROM candidates WHERE election_id=? AND no=? AND type=?';
+            $dupParams = [$electionId, $no, $type];
             if ($editId) { $dupSql .= ' AND id != ?'; $dupParams[] = $editId; }
             if (dbval($dupSql, $dupParams)) {
-                $errors[] = 'Nomor urut sudah dipakai untuk tipe/fakultas yang sama.';
+                $errors[] = 'Nomor urut sudah dipakai untuk tipe yang sama di periode ini.';
             }
         }
 
@@ -306,7 +306,7 @@ $editRow = $editId ? dbrow('SELECT * FROM candidates WHERE id = ?', [$editId]) :
                             </select>
                         </div>
                         <div class="col-md-3 edit-faculty-wrap" <?php echo $fType === 'presma' ? 'style="display:none"' : ''; ?>>
-                            <label class="form-label">Fakultas (DPM)</label>
+                            <label class="form-label">Perwakilan Fakultas (opsional)</label>
                             <select class="form-select" name="faculty_id">
                                 <option value="">-- Pilih --</option>
                                 <?php foreach ($faculties as $f): ?>
@@ -548,7 +548,7 @@ $editRow = $editId ? dbrow('SELECT * FROM candidates WHERE id = ?', [$editId]) :
                         </select>
                     </div>
                     <div class="col-md-4" id="addFacultyWrap" style="display:none">
-                        <label class="form-label">Fakultas (DPM)</label>
+                        <label class="form-label">Perwakilan Fakultas (opsional)</label>
                         <select class="form-select" name="faculty_id">
                             <option value="">-- Pilih --</option>
                             <?php foreach ($faculties as $f): ?>
