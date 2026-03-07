@@ -422,16 +422,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
 
             <!-- Pagination -->
-            <?php if ($pages > 1): ?>
+            <?php if ($pages > 1):
+                $pgBase = 'index.php?p=voters&q=' . urlencode($q) . '&faculty=' . urlencode($facultyFilter) . '&status=' . urlencode($statusFilter);
+                // Window: current page, 2 before, 3 after
+                $window = [];
+                for ($i = max(1, $page - 2); $i <= min($pages, $page + 3); $i++) {
+                    $window[] = $i;
+                }
+            ?>
                 <nav class="mt-3">
                     <ul class="pagination justify-content-end mb-0">
-                        <?php for ($i = 1; $i <= $pages; $i++): ?>
+                        <!-- Prev -->
+                        <li class="page-item <?php echo $page <= 1 ? 'disabled' : ''; ?>">
+                            <a class="page-link" href="<?php echo $pgBase; ?>&pg=<?php echo $page - 1; ?>">«</a>
+                        </li>
+
+                        <!-- First page + ellipsis -->
+                        <?php if (!in_array(1, $window)): ?>
+                            <li class="page-item"><a class="page-link" href="<?php echo $pgBase; ?>&pg=1">1</a></li>
+                            <?php if ($window[0] > 2): ?>
+                                <li class="page-item disabled"><span class="page-link">…</span></li>
+                            <?php endif; ?>
+                        <?php endif; ?>
+
+                        <!-- Window pages -->
+                        <?php foreach ($window as $i): ?>
                             <li class="page-item <?php echo $i === $page ? 'active' : ''; ?>">
-                                <a class="page-link" href="index.php?p=voters&pg=<?php echo $i; ?>&q=<?php echo urlencode($q); ?>&faculty=<?php echo urlencode($facultyFilter); ?>&status=<?php echo urlencode($statusFilter); ?>">
-                                    <?php echo $i; ?>
-                                </a>
+                                <a class="page-link" href="<?php echo $pgBase; ?>&pg=<?php echo $i; ?>"><?php echo $i; ?></a>
                             </li>
-                        <?php endfor; ?>
+                        <?php endforeach; ?>
+
+                        <!-- Ellipsis + last page -->
+                        <?php if (!in_array($pages, $window)): ?>
+                            <?php if ($window[count($window) - 1] < $pages - 1): ?>
+                                <li class="page-item disabled"><span class="page-link">…</span></li>
+                            <?php endif; ?>
+                            <li class="page-item"><a class="page-link" href="<?php echo $pgBase; ?>&pg=<?php echo $pages; ?>"><?php echo $pages; ?></a></li>
+                        <?php endif; ?>
+
+                        <!-- Next -->
+                        <li class="page-item <?php echo $page >= $pages ? 'disabled' : ''; ?>">
+                            <a class="page-link" href="<?php echo $pgBase; ?>&pg=<?php echo $page + 1; ?>">»</a>
+                        </li>
                     </ul>
                 </nav>
             <?php endif; ?>
