@@ -21,7 +21,7 @@ $roleIcon       = $role === 'superadmin' ? 'bx-shield-quarter' : 'bx-user-check'
       <span class="app-brand-logo demo">
         <img src="../img-logo.jpeg" alt="Logo PEMIRA UPR" style="width:32px;height:32px;object-fit:contain;border-radius:50%;">
       </span>
-      <span class="app-brand-text demo menu-text fw-bolder ms-2">PEMIRA UPR</span>
+      <span class="app-brand-text demo menu-text fw-bolder ms-2" style="text-transform:none">PEMIRA UPR</span>
     </a>
 
     <a href="javascript:void(0);" class="layout-menu-toggle menu-link text-large ms-auto d-block d-xl-none">

@@ -63,7 +63,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <span class="app-brand-logo demo">
                             <img src="../img-logo.jpeg" alt="Logo PEMIRA UPR" style="width:40px;height:40px;object-fit:contain;border-radius:50%;">
                         </span>
-                        <span class="app-brand-text demo fw-bolder ms-2">PEMIRA UPR</span>
+                        <span class="app-brand-text demo fw-bolder ms-2" style="text-transform:none">PEMIRA UPR</span>
                     </div>
 
                     <h4 class="mb-1">Login Admin</h4>
