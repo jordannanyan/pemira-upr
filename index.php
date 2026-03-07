@@ -180,17 +180,6 @@ $ttlMin = $election['token_ttl_minutes'] ?? 10;
               <i class="bx bx-log-in-circle"></i>
               Masuk
             </button>
-
-            <div class="divider"></div>
-
-            <div class="mini-actions">
-              <a class="link" href="#" onclick="return false;">
-                <i class="bx bx-help-circle"></i> Bantuan
-              </a>
-              <a class="link" href="#" onclick="return false;">
-                <i class="bx bx-shield-quarter"></i> Aturan Keamanan
-              </a>
-            </div>
           </form>
         </section>
 
