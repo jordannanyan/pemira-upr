@@ -101,6 +101,7 @@ $ktmPhoto = $_SESSION['voter_flow']['photo_path'] ?? null;
   <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
   <link rel="stylesheet" href="style.css" />
   <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+  <script src="models/hands/hands.js"></script>
   <style>
     .cam-grid{display:grid;grid-template-columns:1.2fr .8fr;gap:14px}
     .cam-box{border:1px solid rgba(148,163,184,.35);border-radius:16px;background:rgba(255,255,255,.62);padding:12px}
@@ -295,43 +296,41 @@ $ktmPhoto = $_SESSION['voter_flow']['photo_path'] ?? null;
   const faceStatus   = document.getElementById('faceStatus');
   const faceStatusTx = document.getElementById('faceStatusText');
 
-  let stream = null;
-  let lastDataUrl = null;
-  let faceDetected = false;
+  let stream         = null;
+  let lastDataUrl    = null;
+  let captureReady   = false;
   let detectionRunning = false;
+  let handsDetector  = null;
+  let handPresent    = false;
 
   const MODEL_URL = 'models';
 
-  // ── Face detection status UI ──────────────────────────────────
-  function setFaceStatus(detected, count) {
-    faceDetected = count === 1;
-    btnCapture.disabled = count !== 1;
+  // ── Status UI ────────────────────────────────────────────────
+  function setStatus(faceCount, hasHand) {
+    captureReady = faceCount === 1 && hasHand;
+    btnCapture.disabled = !captureReady;
+    faceStatus.querySelector('i.bx-loader-alt')?.remove();
 
-    if (count === 1) {
-      faceStatus.style.background = 'rgba(34,197,94,.12)';
-      faceStatus.style.borderColor = 'rgba(34,197,94,.4)';
-      faceStatus.style.color = '#14532d';
-      faceStatusTx.innerHTML = '<i class="bx bx-check-circle"></i> 1 wajah terdeteksi — siap ambil foto';
-      faceStatus.querySelector('i.bx-loader-alt')?.remove();
-    } else if (count > 1) {
-      faceStatus.style.background = 'rgba(251,191,36,.15)';
-      faceStatus.style.borderColor = 'rgba(251,191,36,.4)';
-      faceStatus.style.color = '#92400e';
-      faceStatusTx.innerHTML = `<i class="bx bx-error-circle"></i> Terdeteksi ${count} wajah — pastikan hanya 1 wajah dalam frame`;
-    } else {
-      faceStatus.style.background = 'rgba(239,68,68,.1)';
-      faceStatus.style.borderColor = 'rgba(239,68,68,.35)';
-      faceStatus.style.color = '#7f1d1d';
+    if (faceCount === 0) {
+      faceStatus.style.cssText += 'background:rgba(239,68,68,.1);border-color:rgba(239,68,68,.35);color:#7f1d1d;';
       faceStatusTx.innerHTML = '<i class="bx bx-error-circle"></i> Wajah tidak terdeteksi — arahkan wajah ke kamera';
+    } else if (faceCount > 1) {
+      faceStatus.style.cssText += 'background:rgba(251,191,36,.15);border-color:rgba(251,191,36,.4);color:#92400e;';
+      faceStatusTx.innerHTML = `<i class="bx bx-error-circle"></i> Terdeteksi ${faceCount} wajah — pastikan hanya 1 wajah dalam frame`;
+    } else if (!hasHand) {
+      faceStatus.style.cssText += 'background:rgba(249,115,22,.1);border-color:rgba(249,115,22,.4);color:#7c2d12;';
+      faceStatusTx.innerHTML = '<i class="bx bx-id-card"></i> Wajah terdeteksi — tunjukkan KTM ke kamera';
+    } else {
+      faceStatus.style.cssText += 'background:rgba(34,197,94,.12);border-color:rgba(34,197,94,.4);color:#14532d;';
+      faceStatusTx.innerHTML = '<i class="bx bx-check-circle"></i> Wajah + KTM terdeteksi — siap ambil foto';
     }
   }
 
-  // ── Draw bounding boxes on overlay canvas ─────────────────────
+  // ── Draw face bounding boxes ──────────────────────────────────
   function drawDetections(detections) {
     faceOverlay.width  = video.videoWidth;
     faceOverlay.height = video.videoHeight;
     overlayCtx.clearRect(0, 0, faceOverlay.width, faceOverlay.height);
-
     detections.forEach(det => {
       const { x, y, width, height } = det.box;
       overlayCtx.strokeStyle = '#22c55e';
@@ -347,26 +346,38 @@ $ktmPhoto = $_SESSION['voter_flow']['photo_path'] ?? null;
       try {
         const opts = new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 });
         const detections = await faceapi.detectAllFaces(video, opts);
+        if (handsDetector) await handsDetector.send({ image: video });
         drawDetections(detections);
-        setFaceStatus(detections.length > 0, detections.length);
+        setStatus(detections.length, handPresent);
       } catch (_) {}
     }
-    setTimeout(detectLoop, 250);
+    setTimeout(detectLoop, 300);
   }
 
-  // ── Load model & start loop ───────────────────────────────────
-  async function loadFaceDetection() {
+  // ── Load models & start loop ──────────────────────────────────
+  async function loadDetectors() {
     try {
+      faceStatusTx.textContent = 'Memuat model deteksi wajah…';
       await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
-      faceStatus.style.background = '';
-      faceStatus.style.borderColor = '';
-      faceStatus.style.color = '';
-      faceStatusTx.textContent = 'Mendeteksi wajah…';
+
+      faceStatusTx.textContent = 'Memuat model deteksi tangan…';
+      const hands = new Hands({
+        locateFile: (file) => `models/hands/${file}`
+      });
+      hands.setOptions({ maxNumHands: 2, modelComplexity: 0, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
+      hands.onResults((res) => {
+        handPresent = !!(res.multiHandLandmarks && res.multiHandLandmarks.length > 0);
+      });
+      await hands.initialize();
+      handsDetector = hands;
+
+      faceStatusTx.textContent = 'Mendeteksi wajah dan tangan…';
       detectionRunning = true;
       detectLoop();
     } catch (e) {
-      faceStatusTx.textContent = 'Gagal memuat model deteksi — tombol tetap aktif.';
-      btnCapture.disabled = false; // fallback: allow capture anyway
+      console.error(e);
+      faceStatusTx.textContent = 'Gagal memuat model — tombol tetap aktif.';
+      btnCapture.disabled = false;
     }
   }
 
@@ -380,8 +391,7 @@ $ktmPhoto = $_SESSION['voter_flow']['photo_path'] ?? null;
       video.srcObject = stream;
       camStatus.textContent = '✅ Kamera aktif';
       camStatus.style.borderColor = 'rgba(34,197,94,.4)';
-
-      video.addEventListener('playing', loadFaceDetection, { once: true });
+      video.addEventListener('playing', loadDetectors, { once: true });
     } catch (err) {
       camStatus.textContent = '❌ Kamera ditolak';
       camStatus.style.borderColor = 'rgba(239,68,68,.5)';
@@ -391,7 +401,7 @@ $ktmPhoto = $_SESSION['voter_flow']['photo_path'] ?? null;
 
   // ── Capture ───────────────────────────────────────────────────
   function capture() {
-    if (!faceDetected) { alert('Wajah belum terdeteksi. Pastikan wajah Anda terlihat jelas.'); return; }
+    if (!captureReady) { alert('Pastikan wajah dan KTM terlihat jelas di kamera.'); return; }
     if (!video.videoWidth || !video.videoHeight) return;
 
     detectionRunning = false;
@@ -427,8 +437,6 @@ $ktmPhoto = $_SESSION['voter_flow']['photo_path'] ?? null;
     prevStatus.textContent = '⏳ Belum ada';
     btnSubmit.disabled = true;
     document.getElementById('camBoxLeft').style.display = '';
-
-    // Restart detection
     detectionRunning = true;
     detectLoop();
   }
@@ -446,9 +454,7 @@ $ktmPhoto = $_SESSION['voter_flow']['photo_path'] ?? null;
     return;
   }
 
-  // Capture button starts disabled until face is detected
   btnCapture.disabled = true;
-
   startCam();
 
   window.addEventListener('beforeunload', () => {
