@@ -16,28 +16,38 @@ if (!$election) {
     exit;
 }
 
-$rows = dbrows(
-    'SELECT c.no, c.name, COUNT(v.id) AS votes
-     FROM candidates c
-     LEFT JOIN votes v ON v.candidate_id = c.id AND v.election_id = c.election_id
-     WHERE c.election_id = ? AND c.type = ? AND c.is_active = 1
-     GROUP BY c.id ORDER BY c.no ASC',
-    [$election['id'], 'presma']
-);
-
-$series = [];
-$labels = [];
-$meta   = [];
-foreach ($rows as $r) {
-    $series[] = (int)$r['votes'];
-    $labels[] = 'No. ' . $r['no'] . ' - ' . $r['name'];
-    $meta[]   = ['no' => (int)$r['no'], 'name' => $r['name']];
+function fetchLive(int $electionId, string $type): array {
+    global $election;
+    $rows = dbrows(
+        'SELECT c.no, c.name, COUNT(v.id) AS votes
+         FROM candidates c
+         LEFT JOIN votes v ON v.candidate_id = c.id AND v.election_id = c.election_id
+         WHERE c.election_id = ? AND c.type = ? AND c.is_active = 1
+         GROUP BY c.id ORDER BY c.no ASC',
+        [$electionId, $type]
+    );
+    $series = [];
+    $labels = [];
+    $meta   = [];
+    foreach ($rows as $r) {
+        $series[] = (int)$r['votes'];
+        $labels[] = 'No. ' . $r['no'] . ' - ' . $r['name'];
+        $meta[]   = ['no' => (int)$r['no'], 'name' => $r['name']];
+    }
+    return compact('series', 'labels', 'meta');
 }
 
+$presma = fetchLive($election['id'], 'presma');
+$dpm    = fetchLive($election['id'], 'dpm');
+
 echo json_encode([
-    'series' => $series,
-    'labels' => $labels,
-    'meta'   => $meta,
-    'total'  => array_sum($series),
-    'ts'     => time(),
+    'series'     => $presma['series'],
+    'labels'     => $presma['labels'],
+    'meta'       => $presma['meta'],
+    'total'      => array_sum($presma['series']),
+    'series_dpm' => $dpm['series'],
+    'labels_dpm' => $dpm['labels'],
+    'meta_dpm'   => $dpm['meta'],
+    'total_dpm'  => array_sum($dpm['series']),
+    'ts'         => time(),
 ]);

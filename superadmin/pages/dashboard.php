@@ -39,6 +39,33 @@ if ($role === 'superadmin') {
         $meta[]   = ['no' => (int)$c['no'], 'name' => $c['name'], 'icon' => 'bx-user'];
     }
 
+    // Live count DPM
+    $liveDpm = [];
+    if ($election) {
+        $liveDpm = dbrows(
+            'SELECT c.id, c.no, c.name, c.type,
+                    COUNT(v.id) AS votes
+             FROM candidates c
+             LEFT JOIN votes v ON v.candidate_id = c.id AND v.election_id = c.election_id
+             WHERE c.election_id = ? AND c.type = ? AND c.is_active = 1
+             GROUP BY c.id
+             ORDER BY c.no ASC',
+            [$election['id'], 'dpm']
+        );
+    }
+
+    $totalVotesDpm = array_sum(array_column($liveDpm, 'votes'));
+    $percentDpm    = fn($v) => $totalVotesDpm > 0 ? round(($v / $totalVotesDpm) * 100, 1) : 0;
+
+    $labelsDpm = [];
+    $seriesDpm = [];
+    $metaDpm   = [];
+    foreach ($liveDpm as $c) {
+        $labelsDpm[] = 'No. ' . $c['no'] . ' - ' . $c['name'];
+        $seriesDpm[] = (int)$c['votes'];
+        $metaDpm[]   = ['no' => (int)$c['no'], 'name' => $c['name']];
+    }
+
     // Rekap per fakultas
     $facultyStats = dbrows(
         'SELECT f.name AS faculty, f.code,
@@ -243,6 +270,76 @@ if ($role === 'superadmin') {
     </div>
     <?php endif; ?>
 
+    <!-- Live Count DPM -->
+    <?php if (!empty($liveDpm)): ?>
+    <div class="row">
+      <div class="col-12 mb-4">
+        <div class="card">
+          <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+            <div>
+              <h4 class="mb-0">Live Count DPM</h4>
+              <small class="text-muted">Update realtime (refresh setiap 10 detik)</small>
+            </div>
+            <div class="d-flex gap-2 align-items-center">
+              <span class="badge bg-label-info fs-6">
+                Total: <span id="lcDpmTotalVotes"><?php echo number_format($totalVotesDpm); ?></span>
+              </span>
+              <a href="index.php?p=live-count" class="btn btn-info btn-sm text-white">
+                <i class="bx bx-fullscreen me-1"></i> Full Page
+              </a>
+            </div>
+          </div>
+
+          <div class="card-body">
+            <div class="row g-4 align-items-stretch">
+              <div class="col-12 col-xl-7">
+                <div class="card border shadow-none h-100">
+                  <div class="card-body">
+                    <div id="liveCountDpmPie" style="min-height:360px;"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="col-12 col-xl-5">
+                <div class="card border shadow-none h-100">
+                  <div class="card-body">
+                    <h5 class="mb-3">Rincian Per Calon</h5>
+                    <div class="table-responsive">
+                      <table class="table table-hover align-middle">
+                        <thead><tr><th>Calon</th><th class="text-end">Suara</th><th class="text-end">%</th></tr></thead>
+                        <tbody id="lcDpmTbody">
+                          <?php foreach ($liveDpm as $row): ?>
+                            <tr class="lc-dpm-row">
+                              <td>
+                                <div class="d-flex align-items-center gap-2">
+                                  <span class="badge bg-label-info">#<?php echo (int)$row['no']; ?></span>
+                                  <span class="fw-semibold"><?php echo h($row['name']); ?></span>
+                                </div>
+                              </td>
+                              <td class="text-end fw-semibold lcDpmVotes"><?php echo number_format((int)$row['votes']); ?></td>
+                              <td class="text-end fw-semibold lcDpmPct"><?php echo $percentDpm((int)$row['votes']); ?>%</td>
+                            </tr>
+                          <?php endforeach; ?>
+                        </tbody>
+                      </table>
+                    </div>
+                    <div class="d-grid gap-2 mt-3">
+                      <a class="btn btn-outline-info btn-sm" href="index.php?p=candidates">
+                        <i class="bx bx-id-card me-1"></i> Kelola Calon
+                      </a>
+                      <a class="btn btn-outline-info btn-sm" href="index.php?p=votes&type=dpm">
+                        <i class="bx bx-receipt me-1"></i> Data Suara DPM
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <?php endif; ?>
+
     <!-- Rekap per Fakultas -->
     <?php if (!empty($facultyStats)): ?>
     <div class="row">
@@ -287,69 +384,97 @@ if ($role === 'superadmin') {
     </div>
     <?php endif; ?>
 
-    <?php if (!empty($live)): ?>
+    <?php if (!empty($live) || !empty($liveDpm)): ?>
     <script>
     (function () {
-      const lcLabels = <?php echo json_encode($labels, JSON_UNESCAPED_UNICODE); ?>;
-      let   lcSeries = <?php echo json_encode($series, JSON_UNESCAPED_UNICODE); ?>;
-      const lcMeta   = <?php echo json_encode($meta,   JSON_UNESCAPED_UNICODE); ?>;
-
       function genColors(n) {
         return Array.from({length:n}, (_,i) => `hsl(${Math.round(360/Math.max(n,1)*i)} 70% 55%)`);
       }
       function fmt(n) { return (n||0).toLocaleString('id-ID'); }
       function sum(a) { return a.reduce((s,v) => s+(Number(v)||0), 0); }
-      const colors = genColors(lcSeries.length);
 
-      function syncTable(arr) {
-        const tbody = document.getElementById('liveCountTbody');
+      function buildChart(elId, initSeries, initLabels, meta, badgeClass) {
+        const el = document.getElementById(elId);
+        if (!el || typeof ApexCharts === 'undefined') return null;
+        const colors = genColors(initSeries.length);
+        const chart = new ApexCharts(el, {
+          chart: { type:'donut', height:360, toolbar:{show:false} },
+          series: initSeries.slice(),
+          labels: initLabels.slice(),
+          colors,
+          stroke: { width:3 },
+          dataLabels: { enabled:true, formatter:(val,opts) => `#${meta[opts.seriesIndex]?.no} ${val.toFixed(1)}%` },
+          legend: { position:'bottom' },
+          plotOptions: { pie: { donut: { size:'70%', labels:{ show:true,
+            value:{ show:true, fontSize:'24px', formatter: v => fmt(parseInt(v||0)) },
+            total:{ show:true, label:'Total Suara', formatter: w => fmt(sum(w.globals.series)) }
+          }}}},
+          tooltip: { custom: ({series, seriesIndex, w}) => {
+            const v   = series[seriesIndex]??0;
+            const tot = sum(series);
+            const pct = tot>0?(v/tot)*100:0;
+            const m   = meta[seriesIndex]||{no:seriesIndex+1,name:'Calon'};
+            const clr = w.globals.colors[seriesIndex];
+            return `<div class="p-2" style="min-width:200px;"><div class="d-flex align-items-center gap-2 mb-1"><span style="width:10px;height:10px;border-radius:50%;background:${clr};display:inline-block;"></span><span class="badge ${badgeClass}">#${m.no}</span><span class="fw-semibold">${m.name}</span></div><div class="d-flex justify-content-between"><span class="text-muted">Suara</span><span class="fw-semibold">${fmt(v)}</span></div><div class="d-flex justify-content-between"><span class="text-muted">%</span><span class="fw-semibold">${pct.toFixed(1)}%</span></div></div>`;
+          }}
+        });
+        chart.render();
+        return chart;
+      }
+
+      function syncTable(tbodyId, totalElId, arr) {
+        const tbody = document.getElementById(tbodyId);
         if (!tbody) return;
-        const rows  = tbody.querySelectorAll('tr');
         const total = sum(arr);
-        rows.forEach((tr, i) => {
+        tbody.querySelectorAll('tr').forEach((tr, i) => {
           const v   = arr[i] || 0;
           const pct = total > 0 ? (v/total)*100 : 0;
-          const vtd = tr.querySelector('.lcVotes');
-          const ptd = tr.querySelector('.lcPct');
+          const vtd = tr.querySelector('[class*="Votes"]');
+          const ptd = tr.querySelector('[class*="Pct"]');
           if (vtd) vtd.textContent = fmt(v);
           if (ptd) ptd.textContent = pct.toFixed(1) + '%';
         });
-        const tel = document.getElementById('lcTotalVotes');
+        const tel = document.getElementById(totalElId);
         if (tel) tel.textContent = fmt(total);
       }
 
-      const el = document.getElementById('liveCountPie');
-      if (!el || typeof ApexCharts === 'undefined') return;
+      // ── Presma ────────────────────────────────────────────────────────────
+      <?php if (!empty($live)): ?>
+      let lcSeries = <?php echo json_encode($series, JSON_UNESCAPED_UNICODE); ?>;
+      const lcMeta = <?php echo json_encode($meta,   JSON_UNESCAPED_UNICODE); ?>;
+      const chartPresma = buildChart('liveCountPie',
+        lcSeries, <?php echo json_encode($labels, JSON_UNESCAPED_UNICODE); ?>,
+        lcMeta, 'bg-label-primary');
+      <?php endif; ?>
 
-      const chart = new ApexCharts(el, {
-        chart: { type:'donut', height:360, toolbar:{show:false} },
-        series: lcSeries.slice(),
-        labels: lcLabels.slice(),
-        colors,
-        stroke: { width:3 },
-        dataLabels: { enabled:true, formatter:(val,opts) => `#${lcMeta[opts.seriesIndex]?.no} ${val.toFixed(1)}%` },
-        legend: { position:'bottom' },
-        plotOptions: { pie: { donut: { size:'70%', labels:{ show:true, value:{ show:true, fontSize:'24px', formatter: v => fmt(parseInt(v||0)) }, total:{ show:true, label:'Total Suara', formatter: w => fmt(sum(w.globals.series)) } } } } },
-        tooltip: { custom: ({series, seriesIndex, w}) => {
-          const v   = series[seriesIndex]??0;
-          const tot = sum(series);
-          const pct = tot>0?(v/tot)*100:0;
-          const m   = lcMeta[seriesIndex]||{no:seriesIndex+1,name:'Calon'};
-          const clr = w.globals.colors[seriesIndex];
-          return `<div class="p-2" style="min-width:200px;"><div class="d-flex align-items-center gap-2 mb-1"><span style="width:10px;height:10px;border-radius:50%;background:${clr};display:inline-block;"></span><span class="badge bg-label-primary">#${m.no}</span><span class="fw-semibold">${m.name}</span></div><div class="d-flex justify-content-between"><span class="text-muted">Suara</span><span class="fw-semibold">${fmt(v)}</span></div><div class="d-flex justify-content-between"><span class="text-muted">%</span><span class="fw-semibold">${pct.toFixed(1)}%</span></div></div>`;
-        }}
-      });
-      chart.render();
+      // ── DPM ───────────────────────────────────────────────────────────────
+      <?php if (!empty($liveDpm)): ?>
+      let lcSeriesDpm = <?php echo json_encode($seriesDpm, JSON_UNESCAPED_UNICODE); ?>;
+      const lcMetaDpm = <?php echo json_encode($metaDpm,   JSON_UNESCAPED_UNICODE); ?>;
+      const chartDpm  = buildChart('liveCountDpmPie',
+        lcSeriesDpm, <?php echo json_encode($labelsDpm, JSON_UNESCAPED_UNICODE); ?>,
+        lcMetaDpm, 'bg-label-info');
+      <?php endif; ?>
 
+      // ── Polling ───────────────────────────────────────────────────────────
       async function refreshFromServer() {
         try {
           const res  = await fetch('../ajax/live-count.php');
           const data = await res.json();
-          if (Array.isArray(data.series)) {
+          <?php if (!empty($live)): ?>
+          if (Array.isArray(data.series) && chartPresma) {
             lcSeries = data.series;
-            chart.updateSeries(lcSeries, true);
-            syncTable(lcSeries);
+            chartPresma.updateSeries(lcSeries, true);
+            syncTable('liveCountTbody', 'lcTotalVotes', lcSeries);
           }
+          <?php endif; ?>
+          <?php if (!empty($liveDpm)): ?>
+          if (Array.isArray(data.series_dpm) && chartDpm) {
+            lcSeriesDpm = data.series_dpm;
+            chartDpm.updateSeries(lcSeriesDpm, true);
+            syncTable('lcDpmTbody', 'lcDpmTotalVotes', lcSeriesDpm);
+          }
+          <?php endif; ?>
         } catch(e) {}
       }
       setInterval(refreshFromServer, 10000);
