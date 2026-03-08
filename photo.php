@@ -380,10 +380,14 @@ $ktmPhoto = $_SESSION['voter_flow']['photo_path'] ?? null;
     overlayCtx.ellipse(faceCX, faceCY, faceRX, faceRY, 0, 0, Math.PI * 2);
     overlayCtx.stroke();
 
+    // Text: counter-mirror the canvas so text reads correctly
+    overlayCtx.save();
+    overlayCtx.scale(-1, 1); overlayCtx.translate(-w, 0);
     overlayCtx.setLineDash([]);
     overlayCtx.font = 'bold 13px sans-serif';
     overlayCtx.fillStyle = faceColor; overlayCtx.textAlign = 'center';
-    overlayCtx.fillText('Posisikan Wajah', faceCX, faceCY - faceRY - 8);
+    overlayCtx.fillText('Posisikan Wajah', w - faceCX, faceCY - faceRY - 8);
+    overlayCtx.restore();
 
     // ── Card rect (canvas left ≈ visual right) — landscape 1.55:1 ratio ──
     const cardX = w * 0.04, cardY = h * 0.34;
@@ -406,10 +410,13 @@ $ktmPhoto = $_SESSION['voter_flow']['photo_path'] ?? null;
     overlayCtx.shadowBlur = 4;
     drawCornerBracket(overlayCtx, cardX, cardY, cardW, cardH, 22, cardColor, 4);
 
+    overlayCtx.save();
+    overlayCtx.scale(-1, 1); overlayCtx.translate(-w, 0);
     overlayCtx.setLineDash([]);
     overlayCtx.font = 'bold 13px sans-serif';
     overlayCtx.fillStyle = cardColor; overlayCtx.textAlign = 'center';
-    overlayCtx.fillText('KTM / Kartu Mahasiswa', cardX + cardW / 2, cardY - 8);
+    overlayCtx.fillText('KTM / Kartu Mahasiswa', w - (cardX + cardW / 2), cardY - 8);
+    overlayCtx.restore();
 
     overlayCtx.restore();
   }
