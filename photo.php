@@ -105,6 +105,7 @@ $ktmPhoto = $_SESSION['voter_flow']['photo_path'] ?? null;
     .cam-grid{display:grid;grid-template-columns:1.2fr .8fr;gap:14px}
     .cam-box{border:1px solid rgba(148,163,184,.35);border-radius:16px;background:rgba(255,255,255,.62);padding:12px}
     video, canvas, img{width:100%;border-radius:14px;border:1px solid rgba(148,163,184,.25);background:#0b1220}
+    #faceOverlay{background:transparent;border:none;}
     /* Mirror live video (selfie feel, supaya natural seperti kaca) */
     #video{transform:scaleX(-1)}
     .btn-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
@@ -299,19 +300,24 @@ $ktmPhoto = $_SESSION['voter_flow']['photo_path'] ?? null;
   let faceDetected = false;
   let detectionRunning = false;
 
-  const MODEL_URL = 'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights';
+  const MODEL_URL = 'models';
 
   // ── Face detection status UI ──────────────────────────────────
   function setFaceStatus(detected, count) {
-    faceDetected = detected;
-    btnCapture.disabled = !detected;
+    faceDetected = count === 1;
+    btnCapture.disabled = count !== 1;
 
-    if (detected) {
+    if (count === 1) {
       faceStatus.style.background = 'rgba(34,197,94,.12)';
       faceStatus.style.borderColor = 'rgba(34,197,94,.4)';
       faceStatus.style.color = '#14532d';
-      faceStatusTx.innerHTML = `<i class="bx bx-check-circle"></i> Wajah terdeteksi (${count} wajah) — siap ambil foto`;
+      faceStatusTx.innerHTML = '<i class="bx bx-check-circle"></i> 1 wajah terdeteksi — siap ambil foto';
       faceStatus.querySelector('i.bx-loader-alt')?.remove();
+    } else if (count > 1) {
+      faceStatus.style.background = 'rgba(251,191,36,.15)';
+      faceStatus.style.borderColor = 'rgba(251,191,36,.4)';
+      faceStatus.style.color = '#92400e';
+      faceStatusTx.innerHTML = `<i class="bx bx-error-circle"></i> Terdeteksi ${count} wajah — pastikan hanya 1 wajah dalam frame`;
     } else {
       faceStatus.style.background = 'rgba(239,68,68,.1)';
       faceStatus.style.borderColor = 'rgba(239,68,68,.35)';
