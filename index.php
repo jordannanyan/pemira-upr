@@ -99,7 +99,7 @@ $ttlMin = $election['token_ttl_minutes'] ?? 10;
           <div class="card-head">
             <h1>Login Pemilih</h1>
             <p class="muted">
-              Masukkan <b>NIM</b> dan <b>Token</b> yang diberikan admin TPU.
+              Masukkan <b>NIM</b> dan <b>Token</b> yang diberikan admin TPS.
             </p>
           </div>
 
@@ -196,7 +196,7 @@ $ttlMin = $election['token_ttl_minutes'] ?? 10;
             <li class="step done">
               <span class="dot"><i class="bx bx-check"></i></span>
               <div class="step-body">
-                <div class="step-title">Verifikasi di TPU</div>
+                <div class="step-title">Verifikasi di TPS</div>
                 <div class="step-desc">Admin mengecek KTM, menandai hadir, lalu menerbitkan token.</div>
               </div>
             </li>
