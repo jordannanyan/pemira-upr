@@ -176,9 +176,30 @@ function alertIcon(string $t): string {
     @media (max-width: 720px){.cand-grid,.cand-grid-2{grid-template-columns:1fr}.cand{min-height:auto}}
     .actions-bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-top:14px;padding-top:12px;border-top:1px solid rgba(148,163,184,.25);}
     .hint-mini{font-size:12px;color:rgba(107,114,128,.95)}
+    #rotateHint{
+      display:none;
+      position:fixed;inset:0;z-index:9999;
+      background:rgba(15,23,42,.88);
+      backdrop-filter:blur(6px);
+      flex-direction:column;align-items:center;justify-content:center;gap:16px;
+      color:#fff;text-align:center;padding:24px;
+    }
+    #rotateHint .rotate-icon{font-size:56px;animation:spin90 1.2s ease-in-out infinite alternate}
+    @keyframes spin90{from{transform:rotate(90deg)}to{transform:rotate(0deg)}}
+    @media (max-width:768px) and (orientation:landscape){
+      #rotateHint{display:flex}
+    }
   </style>
 </head>
 <body>
+  <div id="rotateHint" role="alertdialog" aria-label="Putar HP ke Portrait">
+    <i class="bx bx-mobile rotate-icon"></i>
+    <div>
+      <div style="font-size:1.15rem;font-weight:700;margin-bottom:6px;">Putar HP ke Portrait</div>
+      <div style="font-size:.9rem;opacity:.85;">Untuk memilih kandidat dengan nyaman,<br>putar HP ke posisi <b>vertikal (portrait)</b>.</div>
+    </div>
+  </div>
+
   <div class="bg-blobs" aria-hidden="true">
     <span class="blob b1"></span><span class="blob b2"></span><span class="blob b3"></span>
   </div>
@@ -202,7 +223,7 @@ function alertIcon(string $t): string {
         <div class="card-head">
           <h1>Surat Suara</h1>
           <p class="muted">
-            Pilih <b>1 kandidat Presiden Mahasiswa</b><?php echo $hasDpm ? ' dan <b>1 kandidat DPM</b> untuk fakultasmu' : ''; ?>.
+            Pilih <b>1 kandidat Presiden Mahasiswa</b><?php echo $hasDpm ? ' dan <b>1 kandidat DPM</b>' : ''; ?>.
             Setelah submit, proses selesai dan token hangus.
           </p>
         </div>
