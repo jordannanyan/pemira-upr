@@ -16,6 +16,11 @@ $filterFaculty  = (int)($_GET['faculty_id'] ?? 0);
 $filterType     = trim($_GET['type'] ?? '');        // presma | dpm
 $filterElection = (int)($_GET['election_id'] ?? ($election['id'] ?? 0));
 
+// Pagination
+$page    = max(1, (int)($_GET['pg'] ?? 1));
+$perPage = 50;
+$offset  = ($page - 1) * $perPage;
+
 $elections = dbrows('SELECT id, name FROM election_periods ORDER BY id DESC');
 
 $where  = [];
@@ -33,27 +38,10 @@ if ($filterType) {
     $params[] = $filterType;
 }
 
-$rows = dbrows(
-    'SELECT v.id, v.election_id, v.candidate_type, v.voter_faculty_id,
-            v.voted_at, v.receipt, v.photo_path, v.ip_address, v.user_agent,
-            f.name AS faculty_name, e.name AS election_name
-     FROM votes v
-     JOIN faculties f ON f.id = v.voter_faculty_id
-     JOIN election_periods e ON e.id = v.election_id'
-    . ($where ? ' WHERE ' . implode(' AND ', $where) : '')
-    . ' ORDER BY v.voted_at DESC LIMIT 500',
-    $params
-);
+$whereStr = $where ? ' WHERE ' . implode(' AND ', $where) : '';
 
-// KPI totals (without limit)
-$kpiParams = $params;
-$kpiWhere  = $where;
-
-$totalVotes  = (int)dbval(
-    'SELECT COUNT(*) FROM votes v'
-    . ($kpiWhere ? ' WHERE ' . implode(' AND ', $kpiWhere) : ''),
-    $kpiParams
-);
+// KPI totals
+$totalVotes  = (int)dbval("SELECT COUNT(*) FROM votes v$whereStr", $params);
 $totalPresma = (int)dbval(
     'SELECT COUNT(*) FROM votes v WHERE v.candidate_type = "presma"'
     . ($filterElection ? ' AND v.election_id = ?' : '')
@@ -65,6 +53,19 @@ $totalDpm = (int)dbval(
     . ($filterElection ? ' AND v.election_id = ?' : '')
     . ($filterFaculty  ? ' AND v.voter_faculty_id = ?' : ''),
     array_filter([$filterElection ?: null, $filterFaculty ?: null])
+);
+
+$pages  = max(1, (int)ceil($totalVotes / $perPage));
+
+$rows = dbrows(
+    "SELECT v.id, v.election_id, v.candidate_type, v.voter_faculty_id,
+            v.voted_at, v.receipt, v.photo_path, v.ip_address, v.user_agent,
+            f.name AS faculty_name, e.name AS election_name
+     FROM votes v
+     JOIN faculties f ON f.id = v.voter_faculty_id
+     JOIN election_periods e ON e.id = v.election_id
+     $whereStr ORDER BY v.voted_at DESC LIMIT $perPage OFFSET $offset",
+    $params
 );
 
 // Faculty breakdown
@@ -144,9 +145,9 @@ $facultyBreakdown = dbrows(
         <div class="col-6 col-md-3">
             <div class="card">
                 <div class="card-body">
-                    <div class="text-muted">Ditampilkan</div>
-                    <h3 class="mb-0"><?php echo number_format(count($rows)); ?></h3>
-                    <small class="text-muted">Maks 500 baris</small>
+                    <div class="text-muted">Halaman</div>
+                    <h3 class="mb-0"><?php echo number_format($page); ?> / <?php echo number_format($pages); ?></h3>
+                    <small class="text-muted"><?php echo $perPage; ?> baris/halaman</small>
                 </div>
             </div>
         </div>
@@ -190,7 +191,7 @@ $facultyBreakdown = dbrows(
             <div class="card h-100">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">Log Suara</h5>
-                    <span class="badge bg-label-primary"><?php echo count($rows); ?> baris</span>
+                    <span class="badge bg-label-primary"><?php echo number_format($totalVotes); ?> total</span>
                 </div>
                 <div class="card-body">
                     <?php if (empty($rows)): ?>
@@ -241,6 +242,49 @@ $facultyBreakdown = dbrows(
                             <div class="fw-semibold">Privasi suara</div>
                             <small>Pilihan calon tidak ditampilkan untuk menjaga kerahasiaan suara.</small>
                         </div>
+
+                        <?php if ($pages > 1):
+                            $pgBase = 'index.php?p=votes'
+                                . ($filterElection ? "&election_id=$filterElection" : '')
+                                . ($filterFaculty  ? "&faculty_id=$filterFaculty"   : '')
+                                . ($filterType     ? '&type=' . urlencode($filterType) : '');
+                            $window = [];
+                            for ($i = max(1, $page - 2); $i <= min($pages, $page + 3); $i++) {
+                                $window[] = $i;
+                            }
+                        ?>
+                            <nav class="mt-3">
+                                <ul class="pagination justify-content-end mb-0">
+                                    <li class="page-item <?php echo $page <= 1 ? 'disabled' : ''; ?>">
+                                        <a class="page-link" href="<?php echo $pgBase; ?>&pg=<?php echo $page - 1; ?>">«</a>
+                                    </li>
+
+                                    <?php if (!in_array(1, $window)): ?>
+                                        <li class="page-item"><a class="page-link" href="<?php echo $pgBase; ?>&pg=1">1</a></li>
+                                        <?php if ($window[0] > 2): ?>
+                                            <li class="page-item disabled"><span class="page-link">…</span></li>
+                                        <?php endif; ?>
+                                    <?php endif; ?>
+
+                                    <?php foreach ($window as $i): ?>
+                                        <li class="page-item <?php echo $i === $page ? 'active' : ''; ?>">
+                                            <a class="page-link" href="<?php echo $pgBase; ?>&pg=<?php echo $i; ?>"><?php echo $i; ?></a>
+                                        </li>
+                                    <?php endforeach; ?>
+
+                                    <?php if (!in_array($pages, $window)): ?>
+                                        <?php if ($window[count($window) - 1] < $pages - 1): ?>
+                                            <li class="page-item disabled"><span class="page-link">…</span></li>
+                                        <?php endif; ?>
+                                        <li class="page-item"><a class="page-link" href="<?php echo $pgBase; ?>&pg=<?php echo $pages; ?>"><?php echo $pages; ?></a></li>
+                                    <?php endif; ?>
+
+                                    <li class="page-item <?php echo $page >= $pages ? 'disabled' : ''; ?>">
+                                        <a class="page-link" href="<?php echo $pgBase; ?>&pg=<?php echo $page + 1; ?>">»</a>
+                                    </li>
+                                </ul>
+                            </nav>
+                        <?php endif; ?>
                     <?php endif; ?>
                 </div>
             </div>
