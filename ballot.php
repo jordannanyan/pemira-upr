@@ -159,9 +159,9 @@ function alertIcon(string $t): string {
     .cand input{display:none}
     .cand-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;}
     .badgeNo{display:inline-flex;align-items:center;justify-content:center;width:54px;height:54px;border-radius:16px;background:rgba(255,255,255,.72);border:1px solid rgba(148,163,184,.30);font-weight:900;color:#0f172a;flex:0 0 auto;box-shadow:0 6px 18px rgba(2,6,23,.06);}
-    .cand-photo{width:100%;height:110px;border-radius:16px;border:1px solid rgba(148,163,184,.25);display:flex;align-items:center;justify-content:center;margin-bottom:12px;background:radial-gradient(120px 80px at 25% 20%,rgba(255,255,255,.95),rgba(255,255,255,.0)),linear-gradient(180deg,rgba(255,255,255,.75),rgba(255,255,255,.35));}
-    .cand-photo img{width:80px;height:80px;border-radius:50%;object-fit:cover;border:2px solid rgba(148,163,184,.35);}
-    .cand-photo i{font-size:70px;color:var(--cand-color);opacity:.98;}
+    .cand-photo{width:100%;height:180px;border-radius:16px;border:1px solid rgba(148,163,184,.25);display:flex;align-items:center;justify-content:center;margin-bottom:12px;background:radial-gradient(120px 80px at 25% 20%,rgba(255,255,255,.95),rgba(255,255,255,.0)),linear-gradient(180deg,rgba(255,255,255,.75),rgba(255,255,255,.35));}
+    .cand-photo img{width:150px;height:150px;border-radius:50%;object-fit:cover;border:2px solid rgba(148,163,184,.35);}
+    .cand-photo i{font-size:110px;color:var(--cand-color);opacity:.98;}
     .cand-name{font-weight:900;font-size:17px;line-height:1.15;margin-bottom:4px;color:#0f172a}
     .cand-desc{color:rgba(107,114,128,.95);font-size:13px;line-height:1.3}
     .cand-check{position:absolute;top:12px;right:12px;width:38px;height:38px;border-radius:999px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.92);border:1px solid rgba(148,163,184,.35);opacity:.25;transform:scale(.95);transition:opacity .14s ease,transform .14s ease;}

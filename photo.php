@@ -100,6 +100,7 @@ $ktmPhoto = $_SESSION['voter_flow']['photo_path'] ?? null;
   <link rel="icon" type="image/jpeg" href="img-logo.jpeg" />
   <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
   <link rel="stylesheet" href="style.css" />
+  <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
   <style>
     .cam-grid{display:grid;grid-template-columns:1.2fr .8fr;gap:14px}
     .cam-box{border:1px solid rgba(148,163,184,.35);border-radius:16px;background:rgba(255,255,255,.62);padding:12px}
@@ -207,22 +208,23 @@ $ktmPhoto = $_SESSION['voter_flow']['photo_path'] ?? null;
                 <span class="pill-sm" id="camStatus">Menghubungkan…</span>
               </div>
 
-              <div style="margin-top:10px;">
+              <div style="margin-top:10px;position:relative;">
                 <video id="video" playsinline autoplay muted></video>
+                <canvas id="faceOverlay" style="position:absolute;top:0;left:0;width:100%;height:100%;border-radius:14px;pointer-events:none;transform:scaleX(-1);"></canvas>
                 <canvas id="canvas" style="display:none;"></canvas>
               </div>
 
-              <div class="btn-row">
-                <button class="btn btn-primary" type="button" id="btnCapture">
-                  <i class="bx bx-camera"></i> Ambil Foto
-                </button>
-                <button class="btn btn-outline" type="button" id="btnRetake" disabled>
-                  <i class="bx bx-revision"></i> Ambil Ulang
-                </button>
+              <div id="faceStatus" style="margin-top:8px;font-size:12px;padding:6px 10px;border-radius:8px;background:rgba(251,191,36,.15);border:1px solid rgba(251,191,36,.4);color:#92400e;display:flex;align-items:center;gap:6px;">
+                <i class="bx bx-loader-alt bx-spin"></i> <span id="faceStatusText">Memuat model deteksi wajah…</span>
               </div>
 
               <div style="margin-top:10px;font-size:12px;color:rgba(107,114,128,.95);">
                 Tips: pegang KTM dekat wajah, pastikan NIM terbaca, jangan blur, pencahayaan cukup.
+              </div>
+
+              <div style="margin-top:10px;border-top:1px solid rgba(148,163,184,.25);padding-top:10px;">
+                <div style="font-size:11px;font-weight:600;color:rgba(107,114,128,.8);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em;">Contoh Foto Yang Benar</div>
+                <img src="photo-example.jpg" alt="Contoh foto: wajah + KTM terlihat jelas" style="width:100%;max-width:220px;border-radius:10px;border:1px solid rgba(148,163,184,.3);display:block;">
               </div>
             </div>
 
@@ -238,6 +240,15 @@ $ktmPhoto = $_SESSION['voter_flow']['photo_path'] ?? null;
                 <div id="previewEmpty" class="muted" style="<?php echo $ktmPhoto ? 'display:none;' : ''; ?>padding:12px 0;">
                   Setelah ambil foto, preview akan muncul di sini.
                 </div>
+              </div>
+
+              <div class="btn-row">
+                <button class="btn btn-primary" type="button" id="btnCapture">
+                  <i class="bx bx-camera"></i> Ambil Foto
+                </button>
+                <button class="btn btn-outline" type="button" id="btnRetake" disabled>
+                  <i class="bx bx-revision"></i> Ambil Ulang
+                </button>
               </div>
 
               <form method="post" id="captureForm" style="margin-top:10px;">
@@ -269,7 +280,9 @@ $ktmPhoto = $_SESSION['voter_flow']['photo_path'] ?? null;
 (() => {
   const video        = document.getElementById('video');
   const canvas       = document.getElementById('canvas');
+  const faceOverlay  = document.getElementById('faceOverlay');
   const ctx          = canvas.getContext('2d');
+  const overlayCtx   = faceOverlay.getContext('2d');
   const camStatus    = document.getElementById('camStatus');
   const prevStatus   = document.getElementById('prevStatus');
   const btnCapture   = document.getElementById('btnCapture');
@@ -278,10 +291,80 @@ $ktmPhoto = $_SESSION['voter_flow']['photo_path'] ?? null;
   const imageData    = document.getElementById('imageData');
   const previewImg   = document.getElementById('previewImg');
   const previewEmpty = document.getElementById('previewEmpty');
+  const faceStatus   = document.getElementById('faceStatus');
+  const faceStatusTx = document.getElementById('faceStatusText');
 
   let stream = null;
   let lastDataUrl = null;
+  let faceDetected = false;
+  let detectionRunning = false;
 
+  const MODEL_URL = 'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights';
+
+  // ── Face detection status UI ──────────────────────────────────
+  function setFaceStatus(detected, count) {
+    faceDetected = detected;
+    btnCapture.disabled = !detected;
+
+    if (detected) {
+      faceStatus.style.background = 'rgba(34,197,94,.12)';
+      faceStatus.style.borderColor = 'rgba(34,197,94,.4)';
+      faceStatus.style.color = '#14532d';
+      faceStatusTx.innerHTML = `<i class="bx bx-check-circle"></i> Wajah terdeteksi (${count} wajah) — siap ambil foto`;
+      faceStatus.querySelector('i.bx-loader-alt')?.remove();
+    } else {
+      faceStatus.style.background = 'rgba(239,68,68,.1)';
+      faceStatus.style.borderColor = 'rgba(239,68,68,.35)';
+      faceStatus.style.color = '#7f1d1d';
+      faceStatusTx.innerHTML = '<i class="bx bx-error-circle"></i> Wajah tidak terdeteksi — arahkan wajah ke kamera';
+    }
+  }
+
+  // ── Draw bounding boxes on overlay canvas ─────────────────────
+  function drawDetections(detections) {
+    faceOverlay.width  = video.videoWidth;
+    faceOverlay.height = video.videoHeight;
+    overlayCtx.clearRect(0, 0, faceOverlay.width, faceOverlay.height);
+
+    detections.forEach(det => {
+      const { x, y, width, height } = det.box;
+      overlayCtx.strokeStyle = '#22c55e';
+      overlayCtx.lineWidth   = 3;
+      overlayCtx.strokeRect(x, y, width, height);
+    });
+  }
+
+  // ── Detection loop ────────────────────────────────────────────
+  async function detectLoop() {
+    if (!detectionRunning) return;
+    if (video.readyState === 4) {
+      try {
+        const opts = new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 });
+        const detections = await faceapi.detectAllFaces(video, opts);
+        drawDetections(detections);
+        setFaceStatus(detections.length > 0, detections.length);
+      } catch (_) {}
+    }
+    setTimeout(detectLoop, 250);
+  }
+
+  // ── Load model & start loop ───────────────────────────────────
+  async function loadFaceDetection() {
+    try {
+      await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+      faceStatus.style.background = '';
+      faceStatus.style.borderColor = '';
+      faceStatus.style.color = '';
+      faceStatusTx.textContent = 'Mendeteksi wajah…';
+      detectionRunning = true;
+      detectLoop();
+    } catch (e) {
+      faceStatusTx.textContent = 'Gagal memuat model deteksi — tombol tetap aktif.';
+      btnCapture.disabled = false; // fallback: allow capture anyway
+    }
+  }
+
+  // ── Camera ───────────────────────────────────────────────────
   async function startCam() {
     try {
       stream = await navigator.mediaDevices.getUserMedia({
@@ -291,6 +374,8 @@ $ktmPhoto = $_SESSION['voter_flow']['photo_path'] ?? null;
       video.srcObject = stream;
       camStatus.textContent = '✅ Kamera aktif';
       camStatus.style.borderColor = 'rgba(34,197,94,.4)';
+
+      video.addEventListener('playing', loadFaceDetection, { once: true });
     } catch (err) {
       camStatus.textContent = '❌ Kamera ditolak';
       camStatus.style.borderColor = 'rgba(239,68,68,.5)';
@@ -298,16 +383,22 @@ $ktmPhoto = $_SESSION['voter_flow']['photo_path'] ?? null;
     }
   }
 
+  // ── Capture ───────────────────────────────────────────────────
   function capture() {
+    if (!faceDetected) { alert('Wajah belum terdeteksi. Pastikan wajah Anda terlihat jelas.'); return; }
     if (!video.videoWidth || !video.videoHeight) return;
+
+    detectionRunning = false;
+    overlayCtx.clearRect(0, 0, faceOverlay.width, faceOverlay.height);
+
     canvas.width  = video.videoWidth;
     canvas.height = video.videoHeight;
-    // Flip canvas horizontally supaya foto konsisten dengan live mirror video
     ctx.save();
     ctx.translate(canvas.width, 0);
     ctx.scale(-1, 1);
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     ctx.restore();
+
     const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
     lastDataUrl = dataUrl;
     previewImg.src = dataUrl;
@@ -317,12 +408,11 @@ $ktmPhoto = $_SESSION['voter_flow']['photo_path'] ?? null;
     btnSubmit.disabled = false;
     btnRetake.disabled = false;
 
-    // Sembunyikan webcam box, scroll ke preview box
     document.getElementById('camBoxLeft').style.display = 'none';
-    const previewBox = document.getElementById('camBoxRight');
-    previewBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    document.getElementById('camBoxRight').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
 
+  // ── Retake ────────────────────────────────────────────────────
   function retake() {
     lastDataUrl = null;
     previewImg.removeAttribute('src');
@@ -330,8 +420,11 @@ $ktmPhoto = $_SESSION['voter_flow']['photo_path'] ?? null;
     previewEmpty.style.display = '';
     prevStatus.textContent = '⏳ Belum ada';
     btnSubmit.disabled = true;
-    // Tampilkan kembali webcam box
     document.getElementById('camBoxLeft').style.display = '';
+
+    // Restart detection
+    detectionRunning = true;
+    detectLoop();
   }
 
   btnCapture.addEventListener('click', capture);
@@ -347,9 +440,13 @@ $ktmPhoto = $_SESSION['voter_flow']['photo_path'] ?? null;
     return;
   }
 
+  // Capture button starts disabled until face is detected
+  btnCapture.disabled = true;
+
   startCam();
 
   window.addEventListener('beforeunload', () => {
+    detectionRunning = false;
     try { if (stream) stream.getTracks().forEach(t => t.stop()); } catch (e) {}
   });
 })();
