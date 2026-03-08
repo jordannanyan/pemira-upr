@@ -326,15 +326,107 @@ $ktmPhoto = $_SESSION['voter_flow']['photo_path'] ?? null;
     }
   }
 
+  // ── Guide overlay helpers ─────────────────────────────────────
+  function roundedRectPath(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y); ctx.lineTo(x + w - r, y);
+    ctx.arcTo(x + w, y, x + w, y + r, r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+    ctx.lineTo(x + r, y + h);
+    ctx.arcTo(x, y + h, x, y + h - r, r);
+    ctx.lineTo(x, y + r);
+    ctx.arcTo(x, y, x + r, y, r);
+    ctx.closePath();
+  }
+
+  function drawCornerBracket(ctx, x, y, w, h, size, color, lw) {
+    ctx.strokeStyle = color; ctx.lineWidth = lw || 4;
+    ctx.lineCap = 'round'; ctx.setLineDash([]);
+    const s = size;
+    ctx.beginPath();
+    ctx.moveTo(x + s, y); ctx.lineTo(x, y); ctx.lineTo(x, y + s);
+    ctx.moveTo(x + w - s, y); ctx.lineTo(x + w, y); ctx.lineTo(x + w, y + s);
+    ctx.moveTo(x, y + h - s); ctx.lineTo(x, y + h); ctx.lineTo(x + s, y + h);
+    ctx.moveTo(x + w - s, y + h); ctx.lineTo(x + w, y + h); ctx.lineTo(x + w, y + h - s);
+    ctx.stroke();
+  }
+
+  // ── Draw guide overlays (face oval + card rect) ───────────────
+  // Canvas has CSS scaleX(-1): canvas-right → visual-left, canvas-left → visual-right
+  function drawGuides(w, h, faceOk, cardOk) {
+    overlayCtx.save();
+
+    // Dark vignette over whole frame
+    overlayCtx.fillStyle = 'rgba(0,0,0,0.30)';
+    overlayCtx.fillRect(0, 0, w, h);
+
+    // ── Face oval (canvas right ≈ visual left) ─────────────────
+    const faceCX = w * 0.68, faceCY = h * 0.50;
+    const faceRX = w * 0.155, faceRY = h * 0.37;
+    const faceColor = faceOk ? '#22c55e' : 'rgba(255,255,255,0.82)';
+
+    overlayCtx.save();
+    overlayCtx.globalCompositeOperation = 'destination-out';
+    overlayCtx.beginPath();
+    overlayCtx.ellipse(faceCX, faceCY, faceRX, faceRY, 0, 0, Math.PI * 2);
+    overlayCtx.fill();
+    overlayCtx.restore();
+
+    overlayCtx.shadowColor = 'rgba(0,0,0,0.7)'; overlayCtx.shadowBlur = 6;
+    overlayCtx.strokeStyle = faceColor; overlayCtx.lineWidth = 3;
+    overlayCtx.setLineDash([12, 6]);
+    overlayCtx.beginPath();
+    overlayCtx.ellipse(faceCX, faceCY, faceRX, faceRY, 0, 0, Math.PI * 2);
+    overlayCtx.stroke();
+
+    overlayCtx.setLineDash([]);
+    overlayCtx.font = 'bold 13px sans-serif';
+    overlayCtx.fillStyle = faceColor; overlayCtx.textAlign = 'center';
+    overlayCtx.fillText('Posisikan Wajah', faceCX, faceCY - faceRY - 8);
+
+    // ── Card rect (canvas left ≈ visual right) ─────────────────
+    const cardX = w * 0.06, cardY = h * 0.12;
+    const cardW = w * 0.24, cardH = h * 0.76;
+    const cardR = 12;
+    const cardColor = cardOk ? '#fbbf24' : 'rgba(251,191,36,0.80)';
+
+    overlayCtx.save();
+    overlayCtx.globalCompositeOperation = 'destination-out';
+    roundedRectPath(overlayCtx, cardX, cardY, cardW, cardH, cardR);
+    overlayCtx.fill();
+    overlayCtx.restore();
+
+    overlayCtx.shadowColor = 'rgba(0,0,0,0.7)'; overlayCtx.shadowBlur = 6;
+    overlayCtx.strokeStyle = cardColor; overlayCtx.lineWidth = 2;
+    overlayCtx.setLineDash([8, 4]);
+    roundedRectPath(overlayCtx, cardX, cardY, cardW, cardH, cardR);
+    overlayCtx.stroke();
+
+    overlayCtx.shadowBlur = 4;
+    drawCornerBracket(overlayCtx, cardX, cardY, cardW, cardH, 22, cardColor, 4);
+
+    overlayCtx.setLineDash([]);
+    overlayCtx.font = 'bold 13px sans-serif';
+    overlayCtx.fillStyle = cardColor; overlayCtx.textAlign = 'center';
+    overlayCtx.fillText('KTM / Kartu Mahasiswa', cardX + cardW / 2, cardY - 8);
+
+    overlayCtx.restore();
+  }
+
   // ── Draw face bounding boxes ──────────────────────────────────
-  function drawDetections(detections) {
-    faceOverlay.width  = video.videoWidth;
-    faceOverlay.height = video.videoHeight;
-    overlayCtx.clearRect(0, 0, faceOverlay.width, faceOverlay.height);
+  function drawDetections(detections, hasHand) {
+    const w = video.videoWidth, h = video.videoHeight;
+    faceOverlay.width = w; faceOverlay.height = h;
+    overlayCtx.clearRect(0, 0, w, h);
+
+    drawGuides(w, h, detections.length === 1, hasHand);
+
     detections.forEach(det => {
       const { x, y, width, height } = det.box;
-      overlayCtx.strokeStyle = '#22c55e';
-      overlayCtx.lineWidth   = 3;
+      overlayCtx.shadowColor = 'rgba(34,197,94,0.5)'; overlayCtx.shadowBlur = 8;
+      overlayCtx.strokeStyle = '#22c55e'; overlayCtx.lineWidth = 3;
+      overlayCtx.setLineDash([]);
       overlayCtx.strokeRect(x, y, width, height);
     });
   }
@@ -347,7 +439,7 @@ $ktmPhoto = $_SESSION['voter_flow']['photo_path'] ?? null;
         const opts = new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 });
         const detections = await faceapi.detectAllFaces(video, opts);
         if (handsDetector) await handsDetector.send({ image: video });
-        drawDetections(detections);
+        drawDetections(detections, handPresent);
         setStatus(detections.length, handPresent);
       } catch (_) {}
     }
@@ -391,7 +483,16 @@ $ktmPhoto = $_SESSION['voter_flow']['photo_path'] ?? null;
       video.srcObject = stream;
       camStatus.textContent = '✅ Kamera aktif';
       camStatus.style.borderColor = 'rgba(34,197,94,.4)';
-      video.addEventListener('playing', loadDetectors, { once: true });
+      video.addEventListener('playing', () => {
+        setTimeout(() => {
+          if (video.videoWidth && video.videoHeight) {
+            faceOverlay.width  = video.videoWidth;
+            faceOverlay.height = video.videoHeight;
+            drawGuides(faceOverlay.width, faceOverlay.height, false, false);
+          }
+        }, 150);
+        loadDetectors();
+      }, { once: true });
     } catch (err) {
       camStatus.textContent = '❌ Kamera ditolak';
       camStatus.style.borderColor = 'rgba(239,68,68,.5)';
