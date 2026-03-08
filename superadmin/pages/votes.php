@@ -96,6 +96,23 @@ $facultyBreakdown = dbrows(
                 <span class="badge bg-label-warning">Pilihan calon disembunyikan</span>
             </small>
         </div>
+        <div>
+            <?php
+            $exportParams = http_build_query(array_filter([
+                'faculty_id'  => $filterFaculty  ?: null,
+                'type'        => $filterType      ?: null,
+                'election_id' => $filterElection  ?: null,
+            ]));
+            ?>
+            <a class="btn btn-outline-success"
+               href="export/votes-csv.php<?php echo $exportParams ? "?$exportParams" : ''; ?>">
+                <i class="bx bx-file me-1"></i> CSV
+            </a>
+            <a class="btn btn-success ms-1"
+               href="export/votes-csv.php?format=excel<?php echo $exportParams ? "&$exportParams" : ''; ?>">
+                <i class="bx bx-spreadsheet me-1"></i> Excel
+            </a>
+        </div>
     </div>
 
     <!-- KPI -->
