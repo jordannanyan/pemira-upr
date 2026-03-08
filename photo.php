@@ -385,9 +385,9 @@ $ktmPhoto = $_SESSION['voter_flow']['photo_path'] ?? null;
     overlayCtx.fillStyle = faceColor; overlayCtx.textAlign = 'center';
     overlayCtx.fillText('Posisikan Wajah', faceCX, faceCY - faceRY - 8);
 
-    // ── Card rect (canvas left ≈ visual right) ─────────────────
-    const cardX = w * 0.06, cardY = h * 0.12;
-    const cardW = w * 0.24, cardH = h * 0.76;
+    // ── Card rect (canvas left ≈ visual right) — landscape 1.55:1 ratio ──
+    const cardX = w * 0.04, cardY = h * 0.34;
+    const cardW = w * 0.26, cardH = h * 0.32;
     const cardR = 12;
     const cardColor = cardOk ? '#fbbf24' : 'rgba(251,191,36,0.80)';
 
