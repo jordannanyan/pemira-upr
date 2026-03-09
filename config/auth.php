@@ -57,9 +57,26 @@ function flash_get(): ?array {
 // ADMIN AUTH
 // ============================================================
 
-/** Cek apakah admin sudah login */
+/** Cek apakah admin sudah login (dan session token masih valid di DB) */
 function admin_logged_in(): bool {
-    return !empty($_SESSION['admin']['id']);
+    if (empty($_SESSION['admin']['id'])) {
+        return false;
+    }
+    // Verifikasi session token ke DB (cached per-request)
+    static $verified = null;
+    if ($verified !== null) return $verified;
+
+    $token = $_SESSION['admin']['session_token'] ?? null;
+    if (!$token) {
+        $verified = false;
+        return false;
+    }
+    $row = dbrow(
+        'SELECT session_token FROM admin_users WHERE id = ? AND is_active = 1 LIMIT 1',
+        [$_SESSION['admin']['id']]
+    );
+    $verified = ($row !== null && hash_equals((string)($row['session_token'] ?? ''), $token));
+    return $verified;
 }
 
 /** Ambil data admin yang login */
@@ -75,6 +92,11 @@ function admin_role(): string {
 /** Wajib login admin, redirect ke login jika tidak */
 function require_admin_login(string $loginUrl = 'login.php'): void {
     if (!admin_logged_in()) {
+        // Jika ada data sesi tapi token tidak cocok, berarti ada login dari perangkat lain
+        if (!empty($_SESSION['admin']['id'])) {
+            unset($_SESSION['admin']);
+            flash_set('warning', 'Sesi Anda diakhiri karena akun ini login dari perangkat lain.');
+        }
         header('Location: ' . $loginUrl);
         exit;
     }
@@ -100,17 +122,21 @@ function admin_login(string $username, string $password): bool {
         return false;
     }
 
-    // Update last_login
-    dbq('UPDATE admin_users SET last_login_at = NOW() WHERE id = ?', [$user['id']]);
+    // Generate session token unik untuk mencegah login dari 2 perangkat
+    $sessionToken = bin2hex(random_bytes(32));
+
+    // Update last_login dan simpan session token ke DB
+    dbq('UPDATE admin_users SET last_login_at = NOW(), session_token = ? WHERE id = ?', [$sessionToken, $user['id']]);
 
     // Set session
     $_SESSION['admin'] = [
-        'id'         => (int)$user['id'],
-        'username'   => $user['username'],
-        'name'       => $user['name'],
-        'role'       => $user['role'],
-        'faculty_id' => $user['faculty_id'] ? (int)$user['faculty_id'] : null,
-        'login_at'   => time(),
+        'id'           => (int)$user['id'],
+        'username'     => $user['username'],
+        'name'         => $user['name'],
+        'role'         => $user['role'],
+        'faculty_id'   => $user['faculty_id'] ? (int)$user['faculty_id'] : null,
+        'login_at'     => time(),
+        'session_token' => $sessionToken,
     ];
 
     // Audit
@@ -122,7 +148,12 @@ function admin_login(string $username, string $password): bool {
 /** Logout admin */
 function admin_logout(): void {
     if (admin_logged_in()) {
-        audit_log('admin_logout', 'superadmin', admin_me()['id'] ?? null);
+        $adminId = admin_me()['id'] ?? null;
+        if ($adminId) {
+            // Hapus session token dari DB agar sesi lain juga gugur
+            dbq('UPDATE admin_users SET session_token = NULL WHERE id = ?', [$adminId]);
+        }
+        audit_log('admin_logout', 'superadmin', $adminId);
     }
     unset($_SESSION['admin']);
     session_regenerate_id(true);
