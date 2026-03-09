@@ -23,8 +23,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($username === '' || $password === '') {
             $error = 'Username dan password wajib diisi.';
-        } elseif (!admin_login($username, $password)) {
-            $error = 'Username atau password salah, atau akun tidak aktif.';
+        } elseif (!admin_login($username, $password, $error)) {
             // sleep 1 detik untuk mitigasi brute force
             sleep(1);
         } else {

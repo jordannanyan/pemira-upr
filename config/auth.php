@@ -111,14 +111,22 @@ function require_superadmin(string $loginUrl = 'login.php'): void {
     }
 }
 
-/** Login admin: verifikasi username + password, set session */
-function admin_login(string $username, string $password): bool {
+/** Login admin: verifikasi username + password, set session.
+ *  $error diisi pesan jika gagal. */
+function admin_login(string $username, string $password, string &$error = ''): bool {
     $user = dbrow(
         'SELECT * FROM admin_users WHERE username = ? AND is_active = 1 LIMIT 1',
         [$username]
     );
 
     if (!$user || !password_verify($password, $user['password_hash'])) {
+        $error = 'Username atau password salah, atau akun tidak aktif.';
+        return false;
+    }
+
+    // Blokir jika ada sesi aktif di perangkat lain
+    if (!empty($user['session_token'])) {
+        $error = 'Akun ini sedang digunakan dari perangkat lain. Silakan logout terlebih dahulu.';
         return false;
     }
 
