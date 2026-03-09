@@ -170,7 +170,7 @@ if ($role === 'superadmin') {
       <div class="col-lg-3 col-md-6 mb-4">
         <div class="card">
           <div class="card-body">
-            <span class="fw-semibold d-block mb-1">Hadir (TPU)</span>
+            <span class="fw-semibold d-block mb-1">Hadir (TPS)</span>
             <h3 class="card-title mb-0"><?php echo number_format($totalPresent); ?></h3>
             <small class="text-muted">Terverifikasi admin</small>
           </div>
@@ -552,7 +552,7 @@ if ($role === 'superadmin') {
       <div class="col-12 col-lg-7 mb-4">
         <div class="card">
           <div class="card-header">
-            <h5 class="mb-0">Operasional TPU</h5>
+            <h5 class="mb-0">Operasional TPS</h5>
           </div>
           <div class="card-body">
             <div class="row g-3">

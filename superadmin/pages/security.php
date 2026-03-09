@@ -204,7 +204,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       <div class="card mb-4">
         <div class="card-header">
           <h5 class="mb-0">Kebijakan Token</h5>
-          <small class="text-muted">Token diterbitkan admin TPU untuk 1 pemilih</small>
+          <small class="text-muted">Token diterbitkan admin TPS untuk 1 pemilih</small>
         </div>
         <div class="card-body">
           <div class="row g-3 align-items-end">

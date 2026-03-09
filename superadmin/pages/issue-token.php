@@ -5,7 +5,7 @@ if ($role !== 'admin_faculty') {
     http_response_code(403);
     echo "<div class='container-xxl flex-grow-1 container-p-y'><div class='card'><div class='card-body'>
             <h4 class='mb-2'>403 - Forbidden</h4>
-            <p class='mb-0'>Halaman ini khusus Admin TPU.</p>
+            <p class='mb-0'>Halaman ini khusus Admin TPS.</p>
           </div></div></div>";
     return;
 }
@@ -60,7 +60,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     [$admin['id'], $voter['id']]
                 );
                 audit_log('mark_present', 'admin_faculty', $admin['id'], $nim, 'voters', $voter['id']);
-                flash_set('success', "Pemilih $nim berhasil ditandai hadir TPU.");
+                flash_set('success', "Pemilih $nim berhasil ditandai hadir TPS.");
             }
         }
         $searchNim = $nim;
@@ -186,7 +186,7 @@ if ($flash && $flash['type'] === 'token_ok') {
             </span>
             <div>
                 <h4 class="mb-0">Verifikasi &amp; Issue Token</h4>
-                <small class="text-muted">Admin TPU · <?php echo h($facultyName); ?></small>
+                <small class="text-muted">Admin TPS · <?php echo h($facultyName); ?></small>
             </div>
         </div>
         <a href="index.php?p=dashboard" class="btn btn-outline-secondary">
@@ -286,7 +286,7 @@ if ($flash && $flash['type'] === 'token_ok') {
                                     </div>
                                     <div class="d-flex align-items-start flex-wrap gap-2">
                                         <span class="badge <?php echo $found['is_present'] ? 'bg-label-success' : 'bg-label-warning'; ?>">
-                                            <?php echo $found['is_present'] ? 'Hadir TPU' : 'Belum Hadir'; ?>
+                                            <?php echo $found['is_present'] ? 'Hadir TPS' : 'Belum Hadir'; ?>
                                         </span>
                                         <span class="badge <?php echo $found['has_voted'] ? 'bg-label-secondary' : 'bg-label-info'; ?>">
                                             <?php echo $found['has_voted'] ? 'Sudah Memilih' : 'Belum Memilih'; ?>
@@ -307,7 +307,7 @@ if ($flash && $flash['type'] === 'token_ok') {
                                             <input type="hidden" name="_action" value="mark_present">
                                             <input type="hidden" name="nim" value="<?php echo h($found['nim']); ?>">
                                             <button class="btn btn-outline-success w-100" type="submit">
-                                                <i class="bx bx-check-circle me-1"></i> Tandai Hadir TPU
+                                                <i class="bx bx-check-circle me-1"></i> Tandai Hadir TPS
                                             </button>
                                         </form>
                                     </div>
@@ -349,11 +349,11 @@ if ($flash && $flash['type'] === 'token_ok') {
                         </div>
 
                         <div class="alert alert-warning mb-0">
-                            <div class="fw-semibold mb-1"><i class="bx bx-shield-quarter me-1"></i> Checklist Admin TPU</div>
+                            <div class="fw-semibold mb-1"><i class="bx bx-shield-quarter me-1"></i> Checklist Admin TPS</div>
                             <ol class="mb-0">
                                 <li>Cek KTM dan cocokkan NIM</li>
                                 <li>Pastikan pemilih ada di daftar (fakultas yang sama)</li>
-                                <li>Tandai hadir TPU</li>
+                                <li>Tandai hadir TPS</li>
                                 <li>Terbitkan token, minta pemilih login NIM + token</li>
                                 <li>Pastikan foto wajah + NIM dilakukan di bilik</li>
                             </ol>

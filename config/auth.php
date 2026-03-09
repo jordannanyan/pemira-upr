@@ -174,13 +174,13 @@ function voter_login(string $nim, string $token): array {
         return ['ok' => false, 'msg' => 'Token tidak valid atau bukan milik NIM ini.'];
     }
     if ($tkn['used_at'] !== null) {
-        return ['ok' => false, 'msg' => 'Token sudah digunakan. Minta token baru ke admin TPU.'];
+        return ['ok' => false, 'msg' => 'Token sudah digunakan. Minta token baru ke admin TPS.'];
     }
     if ($tkn['revoked_at'] !== null) {
         return ['ok' => false, 'msg' => 'Token sudah dicabut oleh admin. Minta token baru.'];
     }
     if (strtotime($tkn['expires_at']) <= time()) {
-        return ['ok' => false, 'msg' => 'Token sudah expired. Minta token baru ke admin TPU.'];
+        return ['ok' => false, 'msg' => 'Token sudah expired. Minta token baru ke admin TPS.'];
     }
 
     // Cek election aktif
