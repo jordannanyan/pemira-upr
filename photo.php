@@ -361,8 +361,8 @@ $ktmPhoto = $_SESSION['voter_flow']['photo_path'] ?? null;
     overlayCtx.fillStyle = 'rgba(0,0,0,0.30)';
     overlayCtx.fillRect(0, 0, w, h);
 
-    // ── Face oval (canvas right ≈ visual left) ─────────────────
-    const faceCX = w * 0.68, faceCY = h * 0.50;
+    // ── Face oval (canvas left ≈ visual right) ─────────────────
+    const faceCX = w * 0.32, faceCY = h * 0.50;
     const faceRX = w * 0.155, faceRY = h * 0.37;
     const faceColor = faceOk ? '#22c55e' : 'rgba(255,255,255,0.82)';
 
@@ -389,8 +389,8 @@ $ktmPhoto = $_SESSION['voter_flow']['photo_path'] ?? null;
     overlayCtx.fillText('Posisikan Wajah', w - faceCX, faceCY - faceRY - 8);
     overlayCtx.restore();
 
-    // ── Card rect (canvas left ≈ visual right) — landscape 1.55:1 ratio ──
-    const cardX = w * 0.04, cardY = h * 0.34;
+    // ── Card rect (canvas right ≈ visual left) — landscape 1.55:1 ratio ──
+    const cardX = w * 0.70, cardY = h * 0.34;
     const cardW = w * 0.26, cardH = h * 0.32;
     const cardR = 12;
     const cardColor = cardOk ? '#fbbf24' : 'rgba(251,191,36,0.80)';
