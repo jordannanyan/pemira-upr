@@ -10,7 +10,7 @@ if (admin_logged_in()) {
 }
 
 $flash = flash_get();
-$error = null;
+$error = '';
 $usernameVal = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {

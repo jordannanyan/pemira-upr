@@ -113,7 +113,7 @@ function require_superadmin(string $loginUrl = 'login.php'): void {
 
 /** Login admin: verifikasi username + password, set session.
  *  $error diisi pesan jika gagal. */
-function admin_login(string $username, string $password, string &$error = ''): bool {
+function admin_login(string $username, string $password, &$error = ''): bool {
     $user = dbrow(
         'SELECT * FROM admin_users WHERE username = ? AND is_active = 1 LIMIT 1',
         [$username]
