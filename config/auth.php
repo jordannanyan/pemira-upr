@@ -113,7 +113,7 @@ function require_superadmin(string $loginUrl = 'login.php'): void {
 
 /** Login admin: verifikasi username + password, set session.
  *  $error diisi pesan jika gagal. */
-function admin_login(string $username, string $password, &$error = ''): bool {
+function admin_login(string $username, string $password, &$error = '', bool $force = false): bool {
     $user = dbrow(
         'SELECT * FROM admin_users WHERE username = ? AND is_active = 1 LIMIT 1',
         [$username]
@@ -126,8 +126,12 @@ function admin_login(string $username, string $password, &$error = ''): bool {
 
     // Blokir jika ada sesi aktif di perangkat lain
     if (!empty($user['session_token'])) {
-        $error = 'Akun ini sedang digunakan dari perangkat lain. Silakan logout terlebih dahulu.';
-        return false;
+        if (!$force) {
+            $error = 'Akun ini sedang digunakan dari perangkat lain. Silakan logout terlebih dahulu, atau centang "Paksa Login" untuk mengakhiri sesi tersebut.';
+            return false;
+        }
+        // Force login: hapus sesi lama
+        dbq('UPDATE admin_users SET session_token = NULL WHERE id = ?', [$user['id']]);
     }
 
     // Generate session token unik untuk mencegah login dari 2 perangkat

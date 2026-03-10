@@ -21,9 +21,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $password = $_POST['password'] ?? '';
         $usernameVal = $username;
 
+        $force = isset($_POST['force_login']);
         if ($username === '' || $password === '') {
             $error = 'Username dan password wajib diisi.';
-        } elseif (!admin_login($username, $password, $error)) {
+        } elseif (!admin_login($username, $password, $error, $force)) {
             // sleep 1 detik untuk mitigasi brute force
             sleep(1);
         } else {
@@ -115,6 +116,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 <span class="input-group-text cursor-pointer">
                                     <i class="bx bx-hide"></i>
                                 </span>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="force_login" id="force_login" />
+                                <label class="form-check-label text-muted small" for="force_login">
+                                    Paksa Login (akhiri sesi aktif di perangkat lain)
+                                </label>
                             </div>
                         </div>
 
