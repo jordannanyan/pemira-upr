@@ -67,6 +67,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
+    if ($action === 'force_logout') {
+        $id = (int)($_POST['admin_id'] ?? 0);
+        if ($id && $id !== (int)$admin['id']) {
+            dbq('UPDATE admin_users SET session_token = NULL WHERE id = ?', [$id]);
+            flash_set('success', 'Admin berhasil di-logout paksa.');
+        } else {
+            flash_set('danger', 'Tidak bisa logout akun sendiri.');
+        }
+        header('Location: index.php?p=admins');
+        exit;
+    }
+
     if ($action === 'reset_password') {
         $id       = (int)($_POST['admin_id'] ?? 0);
         $newPass  = $_POST['new_password'] ?? '';
@@ -83,7 +95,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $admins = dbrows(
-    'SELECT a.*, f.name AS faculty_name
+    'SELECT a.*, f.name AS faculty_name,
+            (a.session_token IS NOT NULL) AS is_online
      FROM admin_users a
      LEFT JOIN faculties f ON f.id = a.faculty_id
      ORDER BY a.role ASC, a.name ASC'
@@ -152,6 +165,17 @@ $admins = dbrows(
                                             <input type="hidden" name="admin_id" value="<?php echo $a['id']; ?>">
                                             <button type="submit" class="btn btn-sm <?php echo $a['is_active'] ? 'btn-outline-warning' : 'btn-outline-success'; ?>">
                                                 <i class="bx <?php echo $a['is_active'] ? 'bx-user-minus' : 'bx-user-plus'; ?>"></i>
+                                            </button>
+                                        </form>
+                                    <?php endif; ?>
+                                    <!-- Force Logout -->
+                                    <?php if ((int)$a['id'] !== (int)$admin['id'] && !empty($a['session_token'])): ?>
+                                        <form method="post" class="d-inline">
+                                            <?php echo csrf_field(); ?>
+                                            <input type="hidden" name="action" value="force_logout">
+                                            <input type="hidden" name="admin_id" value="<?php echo $a['id']; ?>">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Paksa Logout">
+                                                <i class="bx bx-log-out"></i>
                                             </button>
                                         </form>
                                     <?php endif; ?>

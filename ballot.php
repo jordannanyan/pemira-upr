@@ -152,6 +152,36 @@ function alertIcon(string $t): string {
   <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
   <link rel="stylesheet" href="style.css" />
   <style>
+    /* Watermark */
+    body::after {
+        content: "<?php echo h($v['nim']); ?> · <?php echo h($v['name']); ?>";
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) rotate(-30deg);
+        font-size: 2rem;
+        color: rgba(0,0,0,0.06);
+        white-space: nowrap;
+        pointer-events: none;
+        z-index: 9999;
+        user-select: none;
+    }
+    /* Screen guard */
+    #screen-guard {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.92);
+        z-index: 99999;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        color: #fff;
+        font-family: sans-serif;
+        text-align: center;
+        gap: 12px;
+    }
+    #screen-guard.active { display: flex; }
     .cand-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:12px;}
     .cand-grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-top:12px;}
     .cand{--cand-color:#6366f1;position:relative;border:1.5px solid rgba(148,163,184,.35);background:rgba(255,255,255,.70);border-radius:18px;padding:14px;cursor:pointer;transition:transform .14s ease,box-shadow .14s ease,border-color .14s ease;overflow:hidden;min-height:220px;user-select:none;}
@@ -192,6 +222,12 @@ function alertIcon(string $t): string {
   </style>
 </head>
 <body>
+  <div id="screen-guard">
+    <div style="font-size:3rem;">🔒</div>
+    <div style="font-size:1.2rem;font-weight:bold;">Halaman disembunyikan</div>
+    <div style="font-size:0.9rem;opacity:0.7;">Klik atau kembali ke halaman ini untuk melanjutkan.</div>
+  </div>
+
   <div id="rotateHint" role="alertdialog" aria-label="Putar HP ke Portrait">
     <i class="bx bx-mobile rotate-icon"></i>
     <div>
@@ -339,6 +375,14 @@ function alertIcon(string $t): string {
     </section>
   </main>
 
+  <script>
+    const guard = document.getElementById('screen-guard');
+    document.addEventListener('visibilitychange', () => {
+        guard.classList.toggle('active', document.hidden);
+    });
+    window.addEventListener('blur', () => guard.classList.add('active'));
+    window.addEventListener('focus', () => guard.classList.remove('active'));
+  </script>
   <script>
     (function () {
       function initGrid(gridId) {
