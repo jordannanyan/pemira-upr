@@ -56,9 +56,31 @@ $ttlMin = $election['token_ttl_minutes'] ?? 10;
   <link rel="icon" type="image/jpeg" href="img-logo.jpeg" />
   <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
   <link rel="stylesheet" href="style.css" />
+  <style>
+    #screen-guard {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.92);
+        z-index: 99999;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        color: #fff;
+        font-family: sans-serif;
+        text-align: center;
+        gap: 12px;
+    }
+    #screen-guard.active { display: flex; }
+  </style>
 </head>
 
 <body>
+  <div id="screen-guard">
+    <div style="font-size:3rem;">🔒</div>
+    <div style="font-size:1.2rem;font-weight:bold;">Halaman disembunyikan</div>
+    <div style="font-size:0.9rem;opacity:0.7;">Klik atau kembali ke halaman ini untuk melanjutkan.</div>
+  </div>
   <div class="bg-blobs" aria-hidden="true">
     <span class="blob b1"></span>
     <span class="blob b2"></span>
@@ -272,6 +294,14 @@ $ttlMin = $election['token_ttl_minutes'] ?? 10;
         }
       });
     }
+  </script>
+  <script>
+    const guard = document.getElementById('screen-guard');
+    document.addEventListener('visibilitychange', () => {
+        guard.classList.toggle('active', document.hidden);
+    });
+    window.addEventListener('blur', () => guard.classList.add('active'));
+    window.addEventListener('focus', () => guard.classList.remove('active'));
   </script>
 </body>
 </html>
