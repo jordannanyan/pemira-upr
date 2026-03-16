@@ -21,13 +21,9 @@ $facultyId = isset($_GET['faculty_id']) ? (int)$_GET['faculty_id'] : 0;
 function fetchLive(int $electionId, string $type, int $facultyId): array {
     if ($facultyId > 0) {
         $rows = dbrows(
-            'SELECT c.no, c.name, COUNT(fv.id) AS votes
+            'SELECT c.no, c.name, COUNT(v.id) AS votes
              FROM candidates c
-             LEFT JOIN (
-                 SELECT v.id, v.candidate_id, v.election_id
-                 FROM votes v
-                 JOIN voters vo ON vo.id = v.voter_id AND vo.faculty_id = ?
-             ) fv ON fv.candidate_id = c.id AND fv.election_id = c.election_id
+             LEFT JOIN votes v ON v.candidate_id = c.id AND v.election_id = c.election_id AND v.voter_faculty_id = ?
              WHERE c.election_id = ? AND c.type = ? AND c.is_active = 1
              GROUP BY c.id ORDER BY c.no ASC',
             [$facultyId, $electionId, $type]
