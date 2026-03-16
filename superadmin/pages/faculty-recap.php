@@ -69,14 +69,18 @@ $activeTokens = $election ? (int)dbval(
     [$myFacultyId, $election['id']]
 ) : 0;
 
-// Presma live count (global)
+// Presma live count (faculty only)
 $presmaRows = $election ? dbrows(
-    'SELECT c.no, c.name, COUNT(v.id) AS votes
+    'SELECT c.no, c.name, COUNT(fv.id) AS votes
      FROM candidates c
-     LEFT JOIN votes v ON v.candidate_id=c.id AND v.election_id=c.election_id
+     LEFT JOIN (
+         SELECT v.id, v.candidate_id, v.election_id
+         FROM votes v
+         JOIN voters vo ON vo.id = v.voter_id AND vo.faculty_id = ?
+     ) fv ON fv.candidate_id=c.id AND fv.election_id=c.election_id
      WHERE c.election_id=? AND c.type="presma" AND c.is_active=1
      GROUP BY c.id ORDER BY c.no ASC',
-    [$election['id']]
+    [$myFacultyId, $election['id']]
 ) : [];
 $presmaSeries = array_column($presmaRows, 'votes');
 $presmaLabels = array_map(fn($r) => 'No. ' . $r['no'] . ' - ' . $r['name'], $presmaRows);
@@ -84,14 +88,18 @@ $presmaMeta   = array_map(fn($r) => ['no' => (int)$r['no'], 'name' => $r['name']
 $presmaSeries = array_map('intval', $presmaSeries);
 $totalPresma  = array_sum($presmaSeries);
 
-// DPM live count (global — semua UPR memilih DPM)
+// DPM live count (faculty only)
 $dpmRows = $election ? dbrows(
-    'SELECT c.no, c.name, COUNT(v.id) AS votes
+    'SELECT c.no, c.name, COUNT(fv.id) AS votes
      FROM candidates c
-     LEFT JOIN votes v ON v.candidate_id=c.id AND v.election_id=c.election_id
+     LEFT JOIN (
+         SELECT v.id, v.candidate_id, v.election_id
+         FROM votes v
+         JOIN voters vo ON vo.id = v.voter_id AND vo.faculty_id = ?
+     ) fv ON fv.candidate_id=c.id AND fv.election_id=c.election_id
      WHERE c.election_id=? AND c.type="dpm" AND c.is_active=1
      GROUP BY c.id ORDER BY c.no ASC',
-    [$election['id']]
+    [$myFacultyId, $election['id']]
 ) : [];
 $dpmSeries = array_map('intval', array_column($dpmRows, 'votes'));
 $dpmLabels = array_map(fn($r) => 'No. ' . $r['no'] . ' - ' . $r['name'], $dpmRows);
@@ -193,7 +201,7 @@ $totalDpm  = array_sum($dpmSeries);
         <div class="col-12 col-xl-6">
             <div class="card h-100">
                 <div class="card-header">
-                    <h5 class="mb-0">Live Count Presma (Global)</h5>
+                    <h5 class="mb-0">Live Count Presma — <?php echo h($faculty['name']); ?></h5>
                     <small class="text-muted">
                         Total suara presma: <b id="totalPresmaEl"><?php echo number_format($totalPresma); ?></b>
                         · Auto-refresh 15 dtk
@@ -232,10 +240,10 @@ $totalDpm  = array_sum($dpmSeries);
         <div class="col-12 col-xl-6">
             <div class="card h-100">
                 <div class="card-header">
-                    <h5 class="mb-0">Live Count DPM</h5>
+                    <h5 class="mb-0">Live Count DPM — <?php echo h($faculty['name']); ?></h5>
                     <small class="text-muted">
-                        Seluruh UPR ·
                         Total: <b id="totalDpmEl"><?php echo number_format($totalDpm); ?></b>
+                        · Auto-refresh 15 dtk
                     </small>
                 </div>
                 <div class="card-body">
@@ -348,29 +356,51 @@ $totalDpm  = array_sum($dpmSeries);
     }
 
     const presmaChart = buildDonut(presmaSeries, presmaLabels, presmaMeta, 'presmaDonut', 320);
-    buildDonut(dpmSeries, dpmLabels, dpmMeta, 'dpmDonut', 320);
+    const dpmChart    = buildDonut(dpmSeries, dpmLabels, dpmMeta, 'dpmDonut', 320);
 
-    // Auto-refresh presma every 15 seconds
-    function refreshPresma() {
-        fetch('../ajax/live-count.php')
+    const facultyId = <?php echo (int)$myFacultyId; ?>;
+
+    // Auto-refresh both charts every 15 seconds (faculty-filtered)
+    function refreshLive() {
+        fetch('../ajax/live-count.php?faculty_id=' + facultyId)
             .then(r => r.ok ? r.json() : null)
             .then(data => {
-                if (!data?.series?.length) return;
-                const total = sum(data.series);
-                const el = document.getElementById('totalPresmaEl');
-                if (el) el.textContent = fmt(total);
-                document.querySelectorAll('#presmaTbody tr.pr-row').forEach((tr, i) => {
-                    const v = data.series[i] || 0;
-                    const p = total > 0 ? (v/total*100).toFixed(1) : '0.0';
-                    const vEl = tr.querySelector('.prVotes');
-                    const pEl = tr.querySelector('.prPct');
-                    if (vEl) vEl.textContent = fmt(v);
-                    if (pEl) pEl.textContent = p + '%';
-                });
-                if (presmaChart) presmaChart.updateSeries(data.series.slice());
+                if (!data) return;
+
+                // Presma
+                if (data.series?.length) {
+                    const total = sum(data.series);
+                    const el = document.getElementById('totalPresmaEl');
+                    if (el) el.textContent = fmt(total);
+                    document.querySelectorAll('#presmaTbody tr.pr-row').forEach((tr, i) => {
+                        const v = data.series[i] || 0;
+                        const p = total > 0 ? (v/total*100).toFixed(1) : '0.0';
+                        const vEl = tr.querySelector('.prVotes');
+                        const pEl = tr.querySelector('.prPct');
+                        if (vEl) vEl.textContent = fmt(v);
+                        if (pEl) pEl.textContent = p + '%';
+                    });
+                    if (presmaChart) presmaChart.updateSeries(data.series.slice());
+                }
+
+                // DPM
+                if (data.series_dpm?.length) {
+                    const totalD = sum(data.series_dpm);
+                    const elD = document.getElementById('totalDpmEl');
+                    if (elD) elD.textContent = fmt(totalD);
+                    document.querySelectorAll('#dpmTbody tr.dp-row').forEach((tr, i) => {
+                        const v = data.series_dpm[i] || 0;
+                        const p = totalD > 0 ? (v/totalD*100).toFixed(1) : '0.0';
+                        const vEl = tr.querySelector('.dpVotes');
+                        const pEl = tr.querySelector('.dpPct');
+                        if (vEl) vEl.textContent = fmt(v);
+                        if (pEl) pEl.textContent = p + '%';
+                    });
+                    if (dpmChart) dpmChart.updateSeries(data.series_dpm.slice());
+                }
             }).catch(() => {});
     }
-    setInterval(refreshPresma, 15000);
+    setInterval(refreshLive, 15000);
 
 })();
 </script>
